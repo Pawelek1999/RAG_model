@@ -1,0 +1,47 @@
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+
+# Klasa DocumentChunker sluzy do dzielenia dokumentow LangChain na mniejsze
+# fragmenty tekstu, ktore pozniej mozna zamienic na embeddingi i zapisac
+# w bazie wektorowej.
+class DocumentChunker:
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200) -> None:
+        # Ustawia parametry dzielenia tekstu i tworzy splitter LangChain.
+        self._validate_settings(chunk_size, chunk_overlap)
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self._splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
+
+    def split(self, documents: list[Document]) -> list[Document]:
+        # Dzieli liste dokumentow na chunki i zwraca liste nowych Document.
+        if not documents:
+            return []
+
+        chunks = self._splitter.split_documents(documents)
+        return self._add_chunk_metadata(chunks)
+
+    def split_one(self, document: Document) -> list[Document]:
+        # Dzieli jeden dokument na chunki.
+        return self.split([document])
+
+    def _validate_settings(self, chunk_size: int, chunk_overlap: int) -> None:
+        # Sprawdza, czy rozmiar chunka i overlap maja poprawne wartosci.
+        if chunk_size <= 0:
+            raise ValueError("chunk_size musi byc wiekszy od 0")
+
+        if chunk_overlap < 0:
+            raise ValueError("chunk_overlap nie moze byc mniejszy od 0")
+
+        if chunk_overlap >= chunk_size:
+            raise ValueError("chunk_overlap musi byc mniejszy niz chunk_size")
+
+    def _add_chunk_metadata(self, chunks: list[Document]) -> list[Document]:
+        # Dodaje do metadanych numer chunka, zachowujac metadane z dokumentu zrodlowego.
+        for index, chunk in enumerate(chunks, start=1):
+            chunk.metadata["chunk_index"] = index
+
+        return chunks

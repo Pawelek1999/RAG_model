@@ -1,0 +1,46 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local environment files
+.env
+.env.*
+
+# Local ChromaDB vector database
+chroma_db/
+
+# Local source documents
+Docs/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Test and coverage output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build output
+build/
+dist/
+*.egg-info/
+
+# IDE and editor files
+.vscode/
+.idea/
+
+#Notes
+Ai_context.md
+
+
+# Operating system files
+.DS_Store
+Thumbs.db
