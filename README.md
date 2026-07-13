@@ -22,8 +22,6 @@ RAG_database/
 |   |   +-- vector_store_manager.py
 |   |   +-- retriever_service.py
 |   |   +-- rag_application.py
-|   +-- Docs/
-|   +-- chroma_db/
 |   +-- main.py
 |   +-- requirements.txt
 +-- frontend/
@@ -31,11 +29,14 @@ RAG_database/
 |   |   +-- api/
 |   |   +-- components/
 |   |   +-- App.tsx
++-- Docs/
++-- chroma_db/
++-- docker-compose.yml
 +-- README.md
 ```
 
-`backend/Docs/` przechowuje przeslane dokumenty.  
-`backend/chroma_db/` przechowuje lokalna baze wektorowa ChromaDB.  
+`Docs/` przechowuje przeslane dokumenty.  
+`chroma_db/` przechowuje lokalna baze wektorowa ChromaDB.  
 Oba foldery sa danymi lokalnymi i nie powinny trafiac do GitHuba.
 
 ## Glowne technologie
@@ -89,7 +90,7 @@ ollama pull qwen2.5:7b
    POST /ingest
         |
         v
-5. Backend zapisuje plik w backend/Docs/
+5. Backend zapisuje plik w Docs/
         |
         v
 6. DocumentLoader wczytuje dokument
@@ -101,7 +102,7 @@ ollama pull qwen2.5:7b
 8. EmbeddingService tworzy embeddingi przez Ollama
         |
         v
-9. VectorStoreManager zapisuje chunki w backend/chroma_db/
+9. VectorStoreManager zapisuje chunki w chroma_db/
         |
         v
 10. Frontend odswieza liste dokumentow
@@ -188,7 +189,7 @@ Przykladowa odpowiedz:
     {
       "file_name": "Dane_RAG.docx",
       "file_type": "docx",
-      "source": "D:\\Projekty\\RAG_database\\backend\\Docs\\Dane_RAG.docx",
+      "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx",
       "chunks_count": 7
     }
   ],
@@ -198,7 +199,7 @@ Przykladowa odpowiedz:
 
 ### POST /ingest
 
-Przyjmuje plik jako `multipart/form-data`, zapisuje go w `backend/Docs/` i indeksuje w ChromaDB.
+Przyjmuje plik jako `multipart/form-data`, zapisuje go w `Docs/` i indeksuje w ChromaDB.
 
 Jesli plik o tej samej nazwie juz istnieje, backend nie nadpisuje go, tylko tworzy nazwe typu:
 
@@ -241,7 +242,7 @@ Przykladowa odpowiedz:
     {
       "file_name": "Dane_RAG.docx",
       "file_type": "docx",
-      "source": "D:\\Projekty\\RAG_database\\backend\\Docs\\Dane_RAG.docx",
+      "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx",
       "page": null,
       "sheet_name": null,
       "chunk_index": 4
@@ -258,7 +259,7 @@ Przykladowe zapytanie:
 
 ```json
 {
-  "source": "D:\\Projekty\\RAG_database\\backend\\Docs\\Dane_RAG.docx"
+  "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx"
 }
 ```
 
@@ -266,7 +267,7 @@ Przykladowa odpowiedz:
 
 ```json
 {
-  "source": "D:\\Projekty\\RAG_database\\backend\\Docs\\Dane_RAG.docx",
+  "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx",
   "deleted_chunks_count": 7,
   "total_chunks_count": 0
 }
@@ -308,6 +309,30 @@ VITE_API_URL=http://127.0.0.1:8000
 ```
 
 ## Uruchomienie
+
+### Docker
+
+Najprostsze uruchomienie calej aplikacji:
+
+```bash
+docker compose up --build
+```
+
+Adresy:
+
+```text
+Frontend: http://127.0.0.1:5173
+API:      http://127.0.0.1:8000
+Swagger:  http://127.0.0.1:8000/docs
+```
+
+Compose zaklada, ze Ollama dziala lokalnie poza Dockerem na hoście:
+
+```text
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+```
+
+Foldery `Docs/` i `chroma_db/` sa podmontowane jako volume, wiec dokumenty i baza wektorowa zostaja na dysku projektu po zatrzymaniu kontenerow.
 
 ### 1. Uruchom Ollama
 
@@ -364,15 +389,15 @@ Albo z katalogu glownego projektu:
 
 ```bash
 cd D:\Projekty\RAG_database
-.\backend\.venv\Scripts\python.exe -m backend.main ingest backend\Docs\plik.docx
+.\backend\.venv\Scripts\python.exe -m backend.main ingest Docs\plik.docx
 .\backend\.venv\Scripts\python.exe -m backend.main chat
 ```
 
 CLI i API korzystaja z tej samej konfiguracji:
 
 ```text
-backend/Docs/
-backend/chroma_db/
+Docs/
+chroma_db/
 ```
 
 ## Obslugiwane formaty dokumentow
@@ -405,4 +430,4 @@ Nie wiem. Nie znalazlem odpowiedzi w dostepnych dokumentach.
 Get-NetTCPConnection -LocalPort 8000
 ```
 
-- `backend/Docs/`, `backend/chroma_db/`, `.venv/`, `node_modules/` i `dist/` nie powinny byc commitowane.
+- `Docs/`, `chroma_db/`, `.venv/`, `node_modules/` i `dist/` nie powinny byc commitowane.

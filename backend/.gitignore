@@ -15,8 +15,6 @@ env/
 # Local ChromaDB vector database
 chroma_db/
 
-# Local source documents
-Docs/
 
 # Logs and temporary files
 *.log

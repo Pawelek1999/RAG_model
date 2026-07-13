@@ -6,10 +6,18 @@ from langchain_ollama import OllamaEmbeddings
 # na embeddingi, czyli wektory liczbowe uzywane pozniej przez baze ChromaDB
 # do wyszukiwania semantycznego.
 class EmbeddingService:
-    def __init__(self, model_name: str = "nomic-embed-text") -> None:
+    def __init__(
+        self,
+        model_name: str = "nomic-embed-text",
+        base_url: str | None = None,
+    ) -> None:
         # Tworzy klienta embeddingow Ollama dla wybranego lokalnego modelu.
         self.model_name = model_name
-        self.embeddings = OllamaEmbeddings(model=model_name)
+        self.base_url = base_url
+        kwargs = {"model": model_name}
+        if base_url:
+            kwargs["base_url"] = base_url
+        self.embeddings = OllamaEmbeddings(**kwargs)
 
     def embed_text(self, text: str) -> list[float]:
         # Zamienia jeden tekst na jeden embedding.

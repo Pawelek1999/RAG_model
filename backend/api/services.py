@@ -19,7 +19,10 @@ class RagApiService:
         self.settings = settings
         self.loader = DocumentLoader()
         self.chunker = DocumentChunker()
-        self.embedding_service = EmbeddingService(model_name=settings.embedding_model)
+        self.embedding_service = EmbeddingService(
+            model_name=settings.embedding_model,
+            base_url=settings.ollama_base_url,
+        )
         self.vector_store_manager = VectorStoreManager(
             embedding_function=self.embedding_service.get_embedding_function(),
             persist_directory=settings.chroma_directory,
@@ -32,6 +35,7 @@ class RagApiService:
         self.rag_application = RAGApplication(
             retriever_service=self.retriever_service,
             model_name=settings.llm_model,
+            base_url=settings.ollama_base_url,
         )
 
     def ingest_file(self, file_path: Path) -> dict[str, int | str]:

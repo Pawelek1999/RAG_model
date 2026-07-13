@@ -11,11 +11,16 @@ class RAGApplication:
         self,
         retriever_service: RetrieverService,
         model_name: str = "qwen2.5:7b",
+        base_url: str | None = None,
     ) -> None:
         # Ustawia retriever oraz lokalny model Ollama uzywany do odpowiedzi.
         self.retriever_service = retriever_service
         self.model_name = model_name
-        self.llm = ChatOllama(model=model_name)
+        self.base_url = base_url
+        kwargs = {"model": model_name}
+        if base_url:
+            kwargs["base_url"] = base_url
+        self.llm = ChatOllama(**kwargs)
 
     def ask(self, question: str, k: int | None = None) -> str:
         # Pobiera kontekst z dokumentow i zwraca odpowiedz modelu.

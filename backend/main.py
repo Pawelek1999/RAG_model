@@ -56,7 +56,10 @@ def ingest_document(file_path: Path) -> None:
     # Wczytuje dokument, dzieli go na chunki i zapisuje w ChromaDB.
     loader = DocumentLoader()
     chunker = DocumentChunker()
-    embedding_service = EmbeddingService(model_name=settings.embedding_model)
+    embedding_service = EmbeddingService(
+        model_name=settings.embedding_model,
+        base_url=settings.ollama_base_url,
+    )
     vector_store_manager = VectorStoreManager(
         embedding_function=embedding_service.get_embedding_function(),
         persist_directory=settings.chroma_directory,
@@ -76,7 +79,10 @@ def ingest_document(file_path: Path) -> None:
 
 def start_chat(k: int = 4) -> None:
     # Uruchamia petle rozmowy z RAG na podstawie istniejacej bazy ChromaDB.
-    embedding_service = EmbeddingService(model_name=settings.embedding_model)
+    embedding_service = EmbeddingService(
+        model_name=settings.embedding_model,
+        base_url=settings.ollama_base_url,
+    )
     vector_store_manager = VectorStoreManager(
         embedding_function=embedding_service.get_embedding_function(),
         persist_directory=settings.chroma_directory,
@@ -86,6 +92,7 @@ def start_chat(k: int = 4) -> None:
     rag_application = RAGApplication(
         retriever_service=retriever_service,
         model_name=settings.llm_model,
+        base_url=settings.ollama_base_url,
     )
 
     print("Czat RAG uruchomiony. Wpisz 'exit' albo 'quit', aby zakonczyc.")
