@@ -2,11 +2,13 @@ import { type DragEvent, useState } from 'react'
 
 type UploadDropzoneProps = {
   isIngesting: boolean
+  uploadProgress: number | null
   onFilesSelected: (files: FileList) => void
 }
 
 export function UploadDropzone({
   isIngesting,
+  uploadProgress,
   onFilesSelected,
 }: UploadDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -37,7 +39,9 @@ export function UploadDropzone({
         onDrop={handleDrop}
       >
         <span className="text-sm font-semibold">
-          {isIngesting ? 'Indeksowanie...' : 'Przeciagnij plik tutaj'}
+          {isIngesting
+            ? `Wgrywanie: ${uploadProgress ?? 0}%`
+            : 'Przeciagnij plik tutaj'}
         </span>
         <span className="mt-1 text-xs text-slate-500">
           albo kliknij i wybierz plik

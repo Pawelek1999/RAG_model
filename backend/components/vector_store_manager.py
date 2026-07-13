@@ -1,9 +1,13 @@
 import hashlib
+import logging
 from pathlib import Path
 
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_chroma import Chroma
+
+
+logger = logging.getLogger(__name__)
 
 
 # Klasa VectorStoreManager sluzy do tworzenia, ladowania i uzupelniania
@@ -25,15 +29,24 @@ class VectorStoreManager:
     def add_documents(self, documents: list[Document]) -> int:
         # Dodaje dokumenty do ChromaDB, pomijajac chunki, ktore juz istnieja.
         if not documents:
+            logger.debug("vector-add-skip-empty-documents")
             return 0
 
         ids = [self._create_document_id(document) for document in documents]
         new_documents, new_ids = self._filter_existing_documents(documents, ids)
+        logger.debug(
+            "vector-add-dedup planned_ids=%s new_ids=%s existing_ids=%s",
+            len(ids),
+            len(new_ids),
+            len(ids) - len(new_ids),
+        )
 
         if not new_documents:
+            logger.debug("vector-add-skip-no-new-documents")
             return 0
 
         self.vector_store.add_documents(documents=new_documents, ids=new_ids)
+        logger.info("vector-add-end added_count=%s", len(new_documents))
         return len(new_documents)
 
     def get_retriever(self, k: int = 4):
@@ -51,11 +64,16 @@ class VectorStoreManager:
         if k <= 0:
             raise ValueError("k musi byc wieksze od 0")
 
-        return self.vector_store.similarity_search(query, k=k)
+        logger.debug("vector-search-start query_len=%s k=%s", len(query), k)
+        documents = self.vector_store.similarity_search(query, k=k)
+        logger.debug("vector-search-end results_count=%s", len(documents))
+        return documents
 
     def count_documents(self) -> int:
         # Zwraca liczbe rekordow zapisanych w kolekcji ChromaDB.
-        return self.vector_store._collection.count()
+        count = self.vector_store._collection.count()
+        logger.debug("vector-count count=%s", count)
+        return count
 
     def delete_by_source(self, source: str) -> int:
         # Usuwa wszystkie chunki, ktore pochodza z podanego zrodla dokumentu.
@@ -64,11 +82,14 @@ class VectorStoreManager:
 
         result = self.vector_store.get(where={"source": source})
         ids = result.get("ids", [])
+        logger.debug("vector-delete-start source=%s ids_count=%s", source, len(ids))
 
         if not ids:
+            logger.debug("vector-delete-skip-no-ids source=%s", source)
             return 0
 
         self.vector_store.delete(ids=ids)
+        logger.info("vector-delete-end source=%s deleted_count=%s", source, len(ids))
         return len(ids)
 
     def _load_vector_store(self) -> Chroma:

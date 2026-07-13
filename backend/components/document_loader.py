@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Callable
 
@@ -5,6 +6,9 @@ import pandas as pd
 from docx import Document as DocxDocument
 from langchain_core.documents import Document
 from pypdf import PdfReader
+
+
+logger = logging.getLogger(__name__)
 
 
 # Klasa DocumentLoader sluzy do wczytywania plikow z dysku i zamiany ich
@@ -27,6 +31,7 @@ class DocumentLoader:
         self._validate_file(path)
 
         extension = path.suffix.lower()
+        logger.info("loader-load-start path=%s extension=%s", path, extension)
         loader = self._loaders.get(extension)
 
         if loader is None:
@@ -36,7 +41,18 @@ class DocumentLoader:
                 f"Obslugiwane formaty: {supported}"
             )
 
-        return loader(path)
+        try:
+            documents = loader(path)
+            logger.info(
+                "loader-load-end path=%s extension=%s documents_count=%s",
+                path,
+                extension,
+                len(documents),
+            )
+            return documents
+        except Exception:
+            logger.exception("loader-load-error path=%s extension=%s", path, extension)
+            raise
 
     def supported_extensions(self) -> list[str]:
         # Zwraca liste rozszerzen plikow obslugiwanych przez loader.
@@ -100,7 +116,8 @@ class DocumentLoader:
 
     def _load_xlsx(self, path: Path) -> list[Document]:
         # Wczytuje plik XLSX i tworzy osobny Document dla kazdego arkusza.
-        sheets = pd.read_excel(path, sheet_name=None)
+        logger.info("loader-xlsx-read-start path=%s engine=openpyxl", path)
+        sheets = pd.read_excel(path, sheet_name=None, engine="openpyxl")
         documents: list[Document] = []
 
         for sheet_name, dataframe in sheets.items():
@@ -116,6 +133,8 @@ class DocumentLoader:
             documents.append(Document(page_content=text, metadata=metadata))
 
         return documents
+    
+
 
     def _base_metadata(self, path: Path, file_type: str) -> dict[str, str]:
         # Buduje wspolne metadane dodawane do kazdego wczytanego dokumentu.

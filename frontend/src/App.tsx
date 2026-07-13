@@ -4,6 +4,7 @@ import {
   deleteDocument,
   getDocuments,
   ingestDocument,
+  type IngestPipelineProgress,
   type DocumentsApiResponse,
 } from './api/ragApi'
 import { AskPanel } from './components/AskPanel'
@@ -23,6 +24,7 @@ function App() {
   const [isIngesting, setIsIngesting] = useState(false)
   const [isAsking, setIsAsking] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -41,20 +43,35 @@ function App() {
   }
 
   const ingestFiles = async (files: FileList) => {
+    const filesArray = Array.from(files)
+    const totalFiles = filesArray.length
+
     setIsIngesting(true)
-    setMessage(`Indeksuje ${files.length} plikow...`)
+    setUploadProgress(0)
+    setMessage(`Przygotowuje upload ${totalFiles} plikow... 0%`)
 
     try {
-      for (const file of Array.from(files)) {
-        await ingestDocument(file)
+      for (const [index, file] of filesArray.entries()) {
+        await ingestDocument(file, (fileProgress: IngestPipelineProgress) => {
+          const overallProgress = Math.round(
+            ((index + fileProgress.percent / 100) / totalFiles) * 100,
+          )
+
+          setUploadProgress(overallProgress)
+          setMessage(
+            `${fileProgress.message}: ${file.name} (${index + 1}/${totalFiles}) - ${overallProgress}%`,
+          )
+        })
       }
 
+      setUploadProgress(100)
       await refreshDocuments()
       setMessage('Dokumenty zostaly zaindeksowane.')
     } catch (error) {
       setMessage(getErrorMessage(error))
     } finally {
       setIsIngesting(false)
+      setUploadProgress(null)
     }
   }
 
@@ -128,6 +145,7 @@ function App() {
         <Header apiStatus={apiStatus} />
         <UploadDropzone
           isIngesting={isIngesting}
+          uploadProgress={uploadProgress}
           onFilesSelected={(files) => void ingestFiles(files)}
         />
         <DocumentsTable

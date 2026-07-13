@@ -38,6 +38,15 @@ class IngestResponse(BaseModel):
     total_chunks_count: int
 
 
+# Schemat postepu indeksowania dokumentu.
+class IngestProgressResponse(BaseModel):
+    upload_id: str
+    progress_percent: int = Field(ge=0, le=100)
+    stage: str
+    status: str
+    message: str
+
+
 # Schemat informacji o zaindeksowanym pliku.
 class DocumentInfo(BaseModel):
     file_name: str | None = None

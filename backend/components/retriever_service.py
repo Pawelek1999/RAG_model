@@ -1,6 +1,11 @@
+import logging
+
 from langchain_core.documents import Document
 
 from backend.components.vector_store_manager import VectorStoreManager
+
+
+logger = logging.getLogger(__name__)
 
 
 # Klasa RetrieverService sluzy do pobierania z ChromaDB najbardziej pasujacych
@@ -18,8 +23,10 @@ class RetrieverService:
         self._validate_query(query)
         search_k = k if k is not None else self.k
         self._validate_k(search_k)
-
-        return self.vector_store_manager.similarity_search(query=query, k=search_k)
+        logger.info("retriever-start query_len=%s k=%s", len(query), search_k)
+        documents = self.vector_store_manager.similarity_search(query=query, k=search_k)
+        logger.info("retriever-end k=%s documents_count=%s", search_k, len(documents))
+        return documents
 
     def retrieve_context(self, query: str, k: int | None = None) -> str:
         # Pobiera chunki i laczy ich tekst w jeden kontekst do promptu RAG.

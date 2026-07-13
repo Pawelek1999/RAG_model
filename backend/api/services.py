@@ -1,4 +1,7 @@
+import logging
+import time
 from pathlib import Path
+from typing import Callable
 
 from langchain_core.documents import Document
 
@@ -10,6 +13,9 @@ from backend.components.embedding_service import EmbeddingService
 from backend.components.rag_application import RAGApplication
 from backend.components.retriever_service import RetrieverService
 from backend.components.vector_store_manager import VectorStoreManager
+
+
+logger = logging.getLogger(__name__)
 
 
 # Klasa RagApiService laczy endpointy API z istniejacymi klasami backendu RAG.
@@ -38,12 +44,40 @@ class RagApiService:
             base_url=settings.ollama_base_url,
         )
 
-    def ingest_file(self, file_path: Path) -> dict[str, int | str]:
+    def ingest_file(
+        self,
+        file_path: Path,
+        on_progress: Callable[[int, str], None] | None = None,
+    ) -> dict[str, int | str]:
         # Wczytuje plik, dzieli go na chunki i zapisuje nowe chunki w ChromaDB.
+        started_at = time.perf_counter()
+        logger.info("service-ingest-start file_path=%s", file_path)
+        if on_progress:
+            on_progress(20, "Wczytuje dokument")
         documents = self.loader.load(file_path)
+        logger.debug("service-ingest-loaded file_path=%s documents_count=%s", file_path, len(documents))
+        if on_progress:
+            on_progress(45, "Dzieli dokument na chunki")
         chunks = self.chunker.split(documents)
+        logger.debug("service-ingest-chunked file_path=%s chunks_count=%s", file_path, len(chunks))
+        if on_progress:
+            on_progress(70, "Zapisuje chunki w ChromaDB")
         added_count = self.vector_store_manager.add_documents(chunks)
+        if on_progress:
+            on_progress(90, "Finalizuje indeksowanie")
         total_count = self.vector_store_manager.count_documents()
+        duration_ms = (time.perf_counter() - started_at) * 1000
+        logger.info(
+            "service-ingest-end file_path=%s documents_count=%s chunks_count=%s added_chunks_count=%s total_chunks_count=%s duration_ms=%.2f",
+            file_path,
+            len(documents),
+            len(chunks),
+            added_count,
+            total_count,
+            duration_ms,
+        )
+        if on_progress:
+            on_progress(100, "Dokument gotowy do uzycia")
 
         return {
             "file_name": file_path.name,
@@ -55,17 +89,29 @@ class RagApiService:
 
     def ask(self, question: str, k: int) -> tuple[str, list[SourceResponse]]:
         # Zadaje pytanie do RAG i zwraca odpowiedz razem ze zrodlami.
+        started_at = time.perf_counter()
+        logger.debug("service-ask-start k=%s question_len=%s", k, len(question))
         documents = self.retriever_service.retrieve(query=question, k=k)
+        logger.debug("service-ask-retrieved k=%s documents_count=%s", k, len(documents))
         context = self.retriever_service.format_context(documents)
         sources = self._build_sources(documents)
         answer = self.rag_application.ask_with_context(
             question=question,
             context=context,
         )
+        duration_ms = (time.perf_counter() - started_at) * 1000
+        logger.info(
+            "service-ask-end k=%s sources_count=%s answer_len=%s duration_ms=%.2f",
+            k,
+            len(sources),
+            len(answer),
+            duration_ms,
+        )
         return answer, sources
 
     def list_documents(self) -> tuple[list[DocumentInfo], int]:
         # Zwraca prosta liste plikow, ktore maja chunki zapisane w ChromaDB.
+        logger.debug("service-list-documents-start")
         result = self.vector_store_manager.vector_store.get(include=["metadatas"])
         metadatas = result.get("metadatas") or []
         documents_by_source: dict[str, dict[str, str | int | None]] = {}
@@ -96,7 +142,13 @@ class RagApiService:
             for metadata in documents_by_source.values()
         ]
 
-        return documents, self.vector_store_manager.count_documents()
+        total_chunks_count = self.vector_store_manager.count_documents()
+        logger.debug(
+            "service-list-documents-end documents_count=%s total_chunks_count=%s",
+            len(documents),
+            total_chunks_count,
+        )
+        return documents, total_chunks_count
 
     def supported_extensions(self) -> list[str]:
         # Zwraca formaty plikow obslugiwane przez loader.
@@ -104,8 +156,15 @@ class RagApiService:
 
     def delete_document(self, source: str) -> DeleteDocumentResponse:
         # Usuwa z ChromaDB wszystkie chunki powiazane z podanym zrodlem.
+        logger.info("service-delete-document-start source=%s", source)
         deleted_count = self.vector_store_manager.delete_by_source(source)
         total_count = self.vector_store_manager.count_documents()
+        logger.info(
+            "service-delete-document-end source=%s deleted_chunks_count=%s total_chunks_count=%s",
+            source,
+            deleted_count,
+            total_count,
+        )
 
         return DeleteDocumentResponse(
             source=source,
