@@ -5,7 +5,12 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.logging_context import RequestContextFilter, reset_request_id, set_request_id
+from backend.api.logging_context import (
+    RequestContextFilter,
+    get_request_id,
+    reset_request_id,
+    set_request_id,
+)
 from backend.api.routers import documents, health, rag
 
 
@@ -18,9 +23,23 @@ def configure_logging() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s [%(name)s] req=%(request_id)s %(message)s",
     )
+
+    # Zapewnia pole request_id dla kazdego rekordu, nawet gdy filtr loggera nie zostanie wykonany.
+    current_factory = logging.getLogRecordFactory()
+
+    def record_factory(*args, **kwargs):
+        record = current_factory(*args, **kwargs)
+        if not hasattr(record, "request_id"):
+            record.request_id = get_request_id()
+        return record
+
+    logging.setLogRecordFactory(record_factory)
+
     context_filter = RequestContextFilter()
     root_logger = logging.getLogger()
     root_logger.addFilter(context_filter)
+    for handler in root_logger.handlers:
+        handler.addFilter(context_filter)
 
     # Ogranicza szum z zewnetrznych bibliotek, bo aplikacja loguje requesty sama.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

@@ -158,11 +158,6 @@ Domyslny adres API:
 http://127.0.0.1:8000
 ```
 
-Dokumentacja Swagger:
-
-```text
-http://127.0.0.1:8000/docs
-```
 
 ### GET /health
 
@@ -349,7 +344,7 @@ Z katalogu glownego projektu:
 
 ```bash
 cd D:\Projekty\RAG_database
-.\backend\.venv\Scripts\python.exe -m uvicorn backend.api.app:app --host 127.0.0.1 --port 8000
+.\backend\.venv\Scripts\  --host 127.0.0.1 --port 8000
 ```
 
 Sprawdzenie:

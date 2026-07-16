@@ -1,4 +1,5 @@
 import logging
+import json
 from pathlib import Path
 from typing import Callable
 
@@ -115,22 +116,59 @@ class DocumentLoader:
         ]
 
     def _load_xlsx(self, path: Path) -> list[Document]:
-        # Wczytuje plik XLSX i tworzy osobny Document dla kazdego arkusza.
+        # Wczytuje plik XLSX i tworzy osobny Document dla kazdego wiersza arkusza.
         logger.info("loader-xlsx-read-start path=%s engine=openpyxl", path)
-        sheets = pd.read_excel(path, sheet_name=None, engine="openpyxl")
+        sheets = pd.read_excel(
+            path,
+            sheet_name=None,
+            engine="openpyxl",
+            dtype=str,
+            keep_default_na=False,
+        )
         documents: list[Document] = []
 
         for sheet_name, dataframe in sheets.items():
-            dataframe = dataframe.dropna(how="all").dropna(axis=1, how="all")
+            dataframe = dataframe.rename(columns=lambda value: str(value).strip())
+            dataframe = dataframe.fillna("")
+            dataframe = dataframe.astype(str)
+            dataframe = dataframe.apply(lambda column: column.str.strip())
+            dataframe = dataframe.loc[
+                ~(dataframe.apply(lambda row: all(not str(cell).strip() for cell in row), axis=1))
+            ]
+            dataframe = dataframe.loc[
+                :,
+                ~(dataframe.apply(lambda column: all(not str(cell).strip() for cell in column), axis=0)),
+            ]
 
             if dataframe.empty:
                 continue
 
-            text = dataframe.to_csv(index=False).strip()
-            metadata = self._base_metadata(path, file_type="xlsx")
-            metadata["sheet_name"] = str(sheet_name)
+            headers = [str(column).strip() for column in dataframe.columns]
 
-            documents.append(Document(page_content=text, metadata=metadata))
+            for row_offset, row_values in enumerate(
+                dataframe.to_dict(orient="records"),
+                start=2,
+            ):
+                row_payload = {
+                    "sheet_name": str(sheet_name),
+                    "headers": headers,
+                    "row_number": row_offset,
+                    "cells": {
+                        header: str(row_values.get(header, "")).strip()
+                        for header in headers
+                    },
+                }
+                metadata = self._base_metadata(path, file_type="xlsx")
+                metadata["sheet_name"] = str(sheet_name)
+                metadata["row_number"] = row_offset
+                metadata["excel_row"] = "true"
+
+                documents.append(
+                    Document(
+                        page_content=json.dumps(row_payload, ensure_ascii=False),
+                        metadata=metadata,
+                    )
+                )
 
         return documents
     
