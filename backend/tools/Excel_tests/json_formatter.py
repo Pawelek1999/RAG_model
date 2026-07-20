@@ -151,6 +151,17 @@ class ExcelJsonFormatter:
             "anomaly": self._extract_anomaly(observed_text),
         }
 
+        payload["display_fields"] = self._build_display_fields(
+            row_type=row_type,
+            sequence_text=sequence_text,
+            revision_text=revision_text,
+            procedure_text=procedure_text,
+            expected_text=expected_text,
+            observed_text=observed_text,
+            conclusion_text=conclusion_text,
+            comment_text=comment_text,
+        )
+
         if self._options.include_raw_rows:
             payload["raw"] = self._dump_raw_row(sheet=sheet, row_index=row_index)
 
@@ -194,9 +205,6 @@ class ExcelJsonFormatter:
             return True
 
         if "intentionally blank line" in importance_text.lower():
-            return True
-
-        if self._colors.is_blue(importance) or self._colors.is_blue(conclusion):
             return True
 
         if self._colors.is_salmon(importance) or self._colors.is_salmon(conclusion):
@@ -293,6 +301,44 @@ class ExcelJsonFormatter:
 
         selected.sort(key=lambda item: (item[0], item[1]))
         return [name for _, name in selected]
+
+    def _build_display_fields(
+        self,
+        row_type: str,
+        sequence_text: str,
+        revision_text: str,
+        procedure_text: str,
+        expected_text: str,
+        observed_text: str,
+        conclusion_text: str,
+        comment_text: str,
+    ) -> list[dict[str, str]]:
+        if row_type == "test_header":
+            field_labels = [
+                ("Test sequence number", sequence_text),
+                ("Revision", revision_text),
+                ("Annotations List", procedure_text),
+                ("Generic functionality", expected_text),
+                ("Initial conditionss", observed_text),
+                ("Purpose", conclusion_text),
+                ("Description and remarks", comment_text),
+            ]
+        else:
+            field_labels = [
+                ("Test sequence number", sequence_text),
+                ("Revision", revision_text),
+                ("Procedure", procedure_text),
+                ("Expected result", expected_text),
+                ("Observed result", observed_text),
+                ("Conclusion", conclusion_text),
+                ("Comment", comment_text),
+            ]
+
+        return [
+            {"label": label, "value": value}
+            for label, value in field_labels
+            if str(value or "").strip()
+        ]
 
     def _extract_two_letter_prefix(self, sheet_name: str) -> str | None:
         # Akceptuje formaty typu AA(...) i ogolnie prefiksy dwuliterowe.

@@ -1,5 +1,5 @@
 EXCEL_COLORS: dict[str, list[str]] = {
-    "BLUE": [],
+    "BLUE": ["INDEXED:44"],
     "SALMON": [],
     "GRAY_LIGHT": [],
     "GRAY_DARK": [],

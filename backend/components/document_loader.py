@@ -173,7 +173,11 @@ class DocumentLoader:
                     rows_rejected += 1
                     continue
 
-                if row.get("skip_from_business_flow") or row.get("row_type") != "test_step":
+                if row.get("skip_from_business_flow"):
+                    rows_rejected += 1
+                    continue
+
+                if row.get("row_type") not in {"test_step", "test_header"}:
                     rows_rejected += 1
                     continue
 
@@ -212,20 +216,33 @@ class DocumentLoader:
 
     def _build_test_row_content(self, row: dict[str, object]) -> str:
         # Buduje semantyczny opis jednego wiersza testowego.
-        field_labels = [
-            ("Test sequence number", row.get("test_sequence_number")),
-            ("Revision", row.get("revision")),
-            ("Procedure", row.get("procedure")),
-            ("Expected result", row.get("expected_result")),
-            ("Observed result", row.get("observed_result")),
-            ("Conclusion", row.get("conclusion")),
-            ("Comment", row.get("comment")),
-            ("Status", row.get("status")),
-            ("Anomaly", row.get("anomaly")),
-        ]
+        display_fields = row.get("display_fields")
+        if isinstance(display_fields, list) and display_fields:
+            field_labels = [
+                (
+                    str(field.get("label") or "").strip(),
+                    field.get("value"),
+                )
+                for field in display_fields
+                if isinstance(field, dict)
+            ]
+        else:
+            field_labels = [
+                ("Test sequence number", row.get("test_sequence_number")),
+                ("Revision", row.get("revision")),
+                ("Procedure", row.get("procedure")),
+                ("Expected result", row.get("expected_result")),
+                ("Observed result", row.get("observed_result")),
+                ("Conclusion", row.get("conclusion")),
+                ("Comment", row.get("comment")),
+                ("Status", row.get("status")),
+                ("Anomaly", row.get("anomaly")),
+            ]
 
         lines: list[str] = []
         for label, value in field_labels:
+            if not label:
+                continue
             text = str(value or "").strip()
             if not text:
                 continue
