@@ -17,6 +17,7 @@ class ApiSettings:
         llm_model: str | None = None,
         ollama_base_url: str | None = None,
         default_k: int | None = None,
+        xlsx_loader_mode: str | None = None,
     ) -> None:
         # Ustawia sciezki, nazwy modeli i domyslne parametry wyszukiwania.
         self.chroma_directory = Path(
@@ -40,6 +41,7 @@ class ApiSettings:
         self.llm_model = llm_model or os.getenv("OLLAMA_LLM_MODEL", "qwen2.5:7b")
         self.ollama_base_url = ollama_base_url or os.getenv("OLLAMA_BASE_URL")
         self.default_k = default_k or int(os.getenv("DEFAULT_K", "4"))
+        self.xlsx_loader_mode = (xlsx_loader_mode or os.getenv("XLSX_LOADER_MODE", "auto")).strip().lower()
 
 
 settings = ApiSettings()

@@ -20,6 +20,13 @@ class SourceResponse(BaseModel):
     source: str | None = None
     page: int | None = None
     sheet_name: str | None = None
+    row_index: int | None = None
+    row_type: str | None = None
+    status: str | None = None
+    anomaly: str | None = None
+    skip_from_business_flow: bool | None = None
+    test_sequence_number: str | None = None
+    revision: str | None = None
     chunk_index: int | None = None
 
 

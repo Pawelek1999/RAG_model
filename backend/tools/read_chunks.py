@@ -52,17 +52,19 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_db_path() -> Path:
-    # Preferuje ./chroma_db, a przy uruchomieniu z backend/ probuje tez ../chroma_db.
-    cwd_path = Path("./chroma_db").resolve()
-    project_root_path = (Path(__file__).resolve().parents[2] / "chroma_db").resolve()
+    # Szuka bazy w kilku typowych lokalizacjach niezaleznie od katalogu uruchomienia.
+    script_path = Path(__file__).resolve()
+    candidates = [
+        (Path.cwd() / "chroma_db").resolve(),
+        (script_path.parents[2] / "chroma_db").resolve(),  # root projektu
+        (script_path.parents[1] / "chroma_db").resolve(),  # backend/chroma_db
+    ]
 
-    if cwd_path.exists():
-        return cwd_path
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
 
-    if project_root_path.exists():
-        return project_root_path
-
-    return cwd_path
+    return candidates[0]
 
 
 def _collection_names(collections: list[Any]) -> list[str]:

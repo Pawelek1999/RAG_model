@@ -54,7 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def ingest_document(file_path: Path) -> None:
     # Wczytuje dokument, dzieli go na chunki i zapisuje w ChromaDB.
-    loader = DocumentLoader()
+    loader = DocumentLoader(xlsx_mode=settings.xlsx_loader_mode)
     chunker = DocumentChunker()
     embedding_service = EmbeddingService(
         model_name=settings.embedding_model,

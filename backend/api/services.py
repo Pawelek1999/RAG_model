@@ -23,7 +23,7 @@ class RagApiService:
     def __init__(self, settings: ApiSettings) -> None:
         # Buduje wspolne komponenty, ktore moga byc uzywane przez endpointy.
         self.settings = settings
-        self.loader = DocumentLoader()
+        self.loader = DocumentLoader(xlsx_mode=settings.xlsx_loader_mode)
         self.chunker = DocumentChunker()
         self.embedding_service = EmbeddingService(
             model_name=settings.embedding_model,
@@ -55,11 +55,20 @@ class RagApiService:
         if on_progress:
             on_progress(20, "Wczytuje dokument")
         documents = self.loader.load(file_path)
-        logger.debug("service-ingest-loaded file_path=%s documents_count=%s", file_path, len(documents))
+        logger.debug(
+            "service-ingest-loaded file_path=%s documents_before_chunking=%s",
+            file_path,
+            len(documents),
+        )
         if on_progress:
             on_progress(45, "Dzieli dokument na chunki")
         chunks = self.chunker.split(documents)
-        logger.debug("service-ingest-chunked file_path=%s chunks_count=%s", file_path, len(chunks))
+        logger.debug(
+            "service-ingest-chunked file_path=%s documents_before_chunking=%s chunks_after_chunking=%s",
+            file_path,
+            len(documents),
+            len(chunks),
+        )
         if on_progress:
             on_progress(70, "Zapisuje chunki w ChromaDB")
         added_count = self.vector_store_manager.add_documents(chunks)
@@ -185,9 +194,16 @@ class RagApiService:
                 source=metadata.get("source"),
                 page=metadata.get("page"),
                 sheet_name=metadata.get("sheet_name"),
+                row_index=metadata.get("row_index"),
+                row_type=metadata.get("row_type"),
+                status=metadata.get("status"),
+                anomaly=metadata.get("anomaly"),
+                skip_from_business_flow=metadata.get("skip_from_business_flow"),
+                test_sequence_number=metadata.get("test_sequence_number"),
+                revision=metadata.get("revision"),
                 chunk_index=metadata.get("chunk_index"),
             )
-            key = (source.source, source.page, source.sheet_name, source.chunk_index)
+            key = (source.source, source.page, source.sheet_name, source.row_index, source.chunk_index)
 
             if key in seen:
                 continue
