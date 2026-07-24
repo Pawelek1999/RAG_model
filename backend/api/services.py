@@ -10,9 +10,11 @@ from backend.api.schemas import DeleteDocumentResponse, DocumentInfo, SourceResp
 from backend.components.document_chunker import DocumentChunker
 from backend.components.document_loader import DocumentLoader
 from backend.components.embedding_service import EmbeddingService
+from backend.components.fact_processing.service import FactPreparationLayer
 from backend.components.rag_application import RAGApplication
-from backend.components.retriever_service import RetrieverService
-from backend.components.vector_store_manager import VectorStoreManager
+from backend.components.RetrieverService.query_features import extract_query_features
+from backend.components.RetrieverService.service import RetrieverService
+from backend.components.VectorStoreManager.service import VectorStoreManager
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,11 @@ class RagApiService:
             retriever_service=self.retriever_service,
             model_name=settings.llm_model,
             base_url=settings.ollama_base_url,
+        )
+        self.fact_preparation_layer = FactPreparationLayer(
+            retriever_service=self.retriever_service,
+            max_items=settings.rag_fact_max_items,
+            include_raw_snippets=settings.rag_fact_include_raw_snippets,
         )
 
     def ingest_file(
@@ -99,19 +106,49 @@ class RagApiService:
     def ask(self, question: str, k: int) -> tuple[str, list[SourceResponse]]:
         # Zadaje pytanie do RAG i zwraca odpowiedz razem ze zrodlami.
         started_at = time.perf_counter()
-        logger.debug("service-ask-start k=%s question_len=%s", k, len(question))
-        documents = self.retriever_service.retrieve(query=question, k=k)
-        logger.debug("service-ask-retrieved k=%s documents_count=%s", k, len(documents))
-        context = self.retriever_service.format_context(documents)
-        sources = self._build_sources(documents)
+        logger.debug(
+            "service-ask-start k=%s question_len=%s fact_mode=%s",
+            k,
+            len(question),
+            self.settings.rag_fact_mode,
+        )
+        query_features = extract_query_features(question)
+        retrieval_k = k
+
+        if self.settings.rag_fact_mode != "raw" and query_features.intent in {
+            "LIST_BUGS",
+            "AFFECTED_TEST_FULL",
+        }:
+            retrieval_k = max(k, min(self.settings.rag_fact_max_items, 80))
+
+        documents = self.retriever_service.retrieve(query=question, k=retrieval_k)
+        logger.debug(
+            "service-ask-retrieved requested_k=%s retrieval_k=%s intent=%s documents_count=%s",
+            k,
+            retrieval_k,
+            query_features.intent,
+            len(documents),
+        )
+
+        prepared = self.fact_preparation_layer.prepare(
+            question=question,
+            retrieved_documents=documents,
+            fact_mode=self.settings.rag_fact_mode,
+        )
+        context = prepared.context
+        sources = self._build_sources(prepared.context_documents)
         answer = self.rag_application.ask_with_context(
             question=question,
             context=context,
+            context_kind=prepared.context_kind,
         )
         duration_ms = (time.perf_counter() - started_at) * 1000
         logger.info(
-            "service-ask-end k=%s sources_count=%s answer_len=%s duration_ms=%.2f",
+            "service-ask-end k=%s mode=%s intent=%s facts=%s sources_count=%s answer_len=%s duration_ms=%.2f",
             k,
+            prepared.context_kind,
+            prepared.query_features.intent,
+            len(prepared.preparation_result.facts),
             len(sources),
             len(answer),
             duration_ms,

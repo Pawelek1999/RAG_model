@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Callable
 
@@ -18,6 +19,11 @@ logger = logging.getLogger(__name__)
 # na obiekty Document zgodne z LangChain, ktore pozniej mozna dzielic
 # na chunki, embedowac i zapisywac w bazie wektorowej.
 class DocumentLoader:
+    _TEST_SEQUENCE_PATTERN = re.compile(
+        r"^(?P<prefix>[A-Za-z0-9]+_)?(?P<test_number>\d{5})\.(?P<step_number>\d{3})$"
+    )
+    _BUG_NUMBER_PATTERN = re.compile(r"\bBUG(?:\s*NB)?\s*[:#-]?\s*(?P<bug_number>\d+)\b", re.IGNORECASE)
+
     def __init__(self, xlsx_mode: str | None = None) -> None:
         # Mapa laczy rozszerzenie pliku z metoda, ktora potrafi go wczytac.
         self._xlsx_mode = self._normalize_xlsx_mode(
@@ -252,6 +258,12 @@ class DocumentLoader:
 
     def _build_test_row_metadata(self, sheet_name: str, row: dict[str, object]) -> dict[str, object]:
         # Przenosi metadane wiersza testowego do warstwy Document.
+        test_sequence_number = row.get("test_sequence_number")
+        sheet_id, test_number, step_number = self._extract_test_sequence_parts(test_sequence_number)
+        observed_result = row.get("observed_result")
+        conclusion = row.get("conclusion")
+        bug_number = self._extract_bug_number(observed_result, conclusion)
+
         return {
             "sheet_name": sheet_name,
             "row_index": row.get("row_index"),
@@ -259,9 +271,48 @@ class DocumentLoader:
             "status": row.get("status"),
             "anomaly": row.get("anomaly"),
             "skip_from_business_flow": row.get("skip_from_business_flow"),
-            "test_sequence_number": row.get("test_sequence_number"),
+            "test_sequence_number": test_sequence_number,
+            "sheet_id": sheet_id,
+            "test_number": test_number,
+            "step_number": step_number,
+            "procedure": row.get("procedure"),
+            "expected_result": row.get("expected_result"),
+            "observed_result": observed_result,
+            "conclusion": conclusion,
+            "bug_number": bug_number,
             "revision": row.get("revision"),
         }
+
+    def _extract_test_sequence_parts(
+        self,
+        raw_sequence: object,
+    ) -> tuple[str | None, str | None, str | None]:
+        # Normalizuje sheet_id, numer testu i numer kroku z pola test_sequence_number.
+        sequence = str(raw_sequence or "").strip()
+        if not sequence:
+            return None, None, None
+
+        match = self._TEST_SEQUENCE_PATTERN.match(sequence)
+        if not match:
+            return None, None, None
+
+        prefix = str(match.group("prefix") or "").strip()
+        sheet_id = prefix[:-1] if prefix.endswith("_") else prefix
+        sheet_id = sheet_id or None
+
+        return sheet_id, match.group("test_number"), match.group("step_number")
+
+    def _extract_bug_number(self, *values: object) -> str | None:
+        for value in values:
+            text = str(value or "").strip()
+            if not text:
+                continue
+
+            match = self._BUG_NUMBER_PATTERN.search(text)
+            if match:
+                return str(match.group("bug_number") or "").strip() or None
+
+        return None
 
     def _resolve_xlsx_mode(self, path: Path) -> str:
         # Umozliwia jawny wybor trybu oraz automatyczne wykrycie workbooka testowego.
