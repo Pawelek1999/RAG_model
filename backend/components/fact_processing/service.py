@@ -177,12 +177,12 @@ class FactPreparationLayer:
     ) -> list[Document]:
         expanded = list(documents)
         tests_to_expand: set[str] = set()
+        preparation = self._prepare_facts(documents)
 
         if query_features.test_number:
             tests_to_expand.add(query_features.test_number)
 
-        if query_features.intent == "AFFECTED_TEST_FULL" and query_features.bug_numbers:
-            preparation = self._prepare_facts(documents)
+        if query_features.intent in {"AFFECTED_TEST_FULL", "TEST_STEPS"} and query_features.bug_numbers:
             for bug_number in query_features.bug_numbers:
                 for reference in preparation.relationships.bug_to_steps.get(bug_number, []):
                     if reference.test_number:
