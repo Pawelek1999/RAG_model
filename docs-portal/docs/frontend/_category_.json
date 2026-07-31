@@ -1,0 +1,8 @@
+{
+  "label": "Frontend",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "The React + Vite single-page app: component structure, state management, and how it talks to the API."
+  }
+}

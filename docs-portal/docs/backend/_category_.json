@@ -1,0 +1,8 @@
+{
+  "label": "Backend",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "The FastAPI backend: RAG pipeline, retrieval layer, fact processing, document ingestion, and the full API reference."
+  }
+}

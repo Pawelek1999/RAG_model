@@ -1,0 +1,8 @@
+{
+  "label": "Document ingestion",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "How an uploaded file becomes searchable chunks in ChromaDB — split across the three real code modules that do the work: loading & chunking, the vector store, and the Excel test-report parser."
+  }
+}

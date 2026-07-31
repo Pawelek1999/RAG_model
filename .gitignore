@@ -20,8 +20,8 @@ backend/.venv/
 *.local
 
 # Local RAG data
-Docs/
-chroma_db/
+/Docs/
+/chroma_db/
 backend/Docs/
 backend/chroma_db/
 

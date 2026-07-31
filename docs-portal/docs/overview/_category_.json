@@ -1,0 +1,8 @@
+{
+  "label": "Overview",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "What RAG_model does, its high-level architecture, and how a request flows through the system."
+  }
+}
