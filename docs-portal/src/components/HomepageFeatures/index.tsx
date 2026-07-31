@@ -11,32 +11,32 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: 'Multi-format ingestion',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Index DOCX, PDF, TXT, MD and XLSX files into ChromaDB, with a
+        dedicated test-oriented mode for structured Excel test reports.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Hybrid retrieval and fact processing',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Combine dense and keyword retrieval with reranking, then prepare the
+        LLM context in raw, structured or hybrid mode.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Local-first with Ollama',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Runs entirely on your machine: a FastAPI backend, a React frontend,
+        and local embedding/LLM models served through Ollama.
       </>
     ),
   },
