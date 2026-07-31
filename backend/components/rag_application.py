@@ -1,19 +1,26 @@
+"""RAG orchestration layer that builds prompts and queries the local LLM."""
+
 from langchain_ollama import ChatOllama
 
 from backend.components.RetrieverService.service import RetrieverService
 
 
-# Klasa RAGApplication laczy retriever, prompt i lokalny model LLM.
-# Jej zadaniem jest odpowiedziec na pytanie uzytkownika tylko na podstawie
-# kontekstu znalezionego w dokumentach zapisanych w bazie wektorowej.
 class RAGApplication:
+    """Answers user questions using retrieved context from indexed documents."""
+
     def __init__(
         self,
         retriever_service: RetrieverService,
         model_name: str = "SpeakLeash/bielik-4.5b-v3.0-instruct:Q8_0",
         base_url: str | None = None,
     ) -> None:
-        # Ustawia retriever oraz lokalny model Ollama uzywany do odpowiedzi.
+        """Initializes retrieval dependency and chat model client.
+
+        Args:
+            retriever_service: Service used to fetch context chunks.
+            model_name: Name of the Ollama chat model.
+            base_url: Optional Ollama endpoint override.
+        """
         self.retriever_service = retriever_service
         self.model_name = model_name
         self.base_url = base_url
@@ -23,13 +30,30 @@ class RAGApplication:
         self.llm = ChatOllama(**kwargs)
 
     def ask(self, question: str, k: int | None = None) -> str:
-        # Pobiera kontekst z dokumentow i zwraca odpowiedz modelu.
+        """Retrieves context for a question and generates an answer.
+
+        Args:
+            question: User question in natural language.
+            k: Optional retrieval size override.
+
+        Returns:
+            Generated answer text.
+        """
         self._validate_question(question)
         context = self.retriever_service.retrieve_context(query=question, k=k)
         return self.ask_with_context(question=question, context=context)
 
     def ask_with_context(self, question: str, context: str, context_kind: str = "raw") -> str:
-        # Tworzy odpowiedz z gotowego kontekstu, bez ponownego retrievalu.
+        """Generates an answer from a precomputed context string.
+
+        Args:
+            question: User question in natural language.
+            context: Prepared context string for the model prompt.
+            context_kind: Context strategy label influencing prompt template.
+
+        Returns:
+            Generated answer text or fallback response when context is empty.
+        """
         self._validate_question(question)
         if not context.strip():
             return "Nie wiem. Nie znalazlem odpowiedzi w dostepnych dokumentach."

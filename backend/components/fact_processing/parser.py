@@ -1,3 +1,5 @@
+"""Parsing utilities that convert retrieved documents into structured facts."""
+
 from __future__ import annotations
 
 import re
@@ -14,6 +16,14 @@ BUG_NUMBER_PATTERN = re.compile(r"\bBUG(?:\s*NB)?\s*[:#-]?\s*(?P<bug_number>\d+)
 
 
 def parse_test_sequence_parts(raw_sequence: object) -> tuple[str | None, str | None, str | None, str | None]:
+    """Parses sheet, test, and step identifiers from sequence text.
+
+    Args:
+        raw_sequence: Raw sequence value from metadata or text.
+
+    Returns:
+        Tuple: sheet_id, test_number, step_number, normalized_sequence.
+    """
     sequence = _clean_text(raw_sequence)
     if not sequence:
         return None, None, None, None
@@ -34,6 +44,14 @@ def parse_test_sequence_parts(raw_sequence: object) -> tuple[str | None, str | N
 
 
 def extract_bug_number(*values: object) -> str | None:
+    """Extracts first bug number found across provided text candidates.
+
+    Args:
+        *values: Candidate values that may contain bug markers.
+
+    Returns:
+        Extracted bug number or None when missing.
+    """
     for value in values:
         text = _clean_text(value)
         if not text:
@@ -47,6 +65,15 @@ def extract_bug_number(*values: object) -> str | None:
 
 
 def normalize_status(raw_status: object, fallback_text: object | None = None) -> str:
+    """Normalizes status labels to an allowed canonical set.
+
+    Args:
+        raw_status: Primary status value.
+        fallback_text: Secondary text used when status is missing.
+
+    Returns:
+        Canonical status string.
+    """
     candidates = [raw_status, fallback_text]
 
     for candidate in candidates:
@@ -65,6 +92,14 @@ def normalize_status(raw_status: object, fallback_text: object | None = None) ->
 
 
 def fact_from_document(document: Document) -> StructuredFact | None:
+    """Builds one structured fact from a retrieved document when possible.
+
+    Args:
+        document: Retrieved document with content and metadata.
+
+    Returns:
+        Structured fact or None when the document does not represent a test fact.
+    """
     metadata = document.metadata
     content = str(document.page_content or "")
 

@@ -1,3 +1,5 @@
+"""Query analysis helpers used to infer retrieval intent and filters."""
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,6 +17,8 @@ from backend.components.RetrieverService.constants import (
 
 @dataclass(frozen=True)
 class QueryFeatures:
+    """Structured query signals used by retrieval and reranking."""
+
     has_hint: bool
     query_lower: str
     full_sequence: str | None
@@ -26,6 +30,14 @@ class QueryFeatures:
 
 
 def extract_query_features(query: str) -> QueryFeatures:
+    """Extracts intent and searchable signals from user query text.
+
+    Args:
+        query: Raw user query.
+
+    Returns:
+        Parsed query feature set consumed by retriever modules.
+    """
     query_lower = query.lower()
 
     sequence_match = TEST_SEQUENCE_PATTERN.search(query)
@@ -65,6 +77,14 @@ def extract_query_features(query: str) -> QueryFeatures:
 
 
 def build_metadata_filter(query_features: QueryFeatures) -> dict[str, Any] | None:
+    """Builds metadata filter constraints from extracted query features.
+
+    Args:
+        query_features: Parsed query feature set.
+
+    Returns:
+        Chroma metadata filter or None when no constraints are applicable.
+    """
     test_number = str(query_features.test_number or "").strip()
     step_number = str(query_features.step_number or "").strip()
 
@@ -86,6 +106,14 @@ def build_metadata_filter(query_features: QueryFeatures) -> dict[str, Any] | Non
 
 
 def build_sparse_terms(query_features: QueryFeatures) -> list[str]:
+    """Builds keyword terms used by sparse matching fallback.
+
+    Args:
+        query_features: Parsed query feature set.
+
+    Returns:
+        Deduplicated list of normalized search terms.
+    """
     terms: list[str] = []
     full_sequence = str(query_features.full_sequence or "").strip().lower()
     test_number = str(query_features.test_number or "").strip().lower()

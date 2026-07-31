@@ -1,3 +1,5 @@
+"""Scoring and candidate merging utilities for retrieval result ranking."""
+
 from langchain_core.documents import Document
 
 from backend.components.RetrieverService.constants import TEST_SEQUENCE_PATTERN
@@ -9,6 +11,16 @@ def rerank_documents(
     top_k: int,
     query_features: QueryFeatures,
 ) -> list[Document]:
+    """Reorders documents according to query-aware relevance scoring.
+
+    Args:
+        documents: Candidate documents from retrieval.
+        top_k: Maximum number of documents to return.
+        query_features: Parsed query intent and hints.
+
+    Returns:
+        Top-ranked documents.
+    """
     if not documents:
         return []
 
@@ -29,6 +41,16 @@ def merge_candidates(
     sparse_documents: list[Document],
     query_features: QueryFeatures,
 ) -> list[Document]:
+    """Merges dense and sparse candidates into one ranked candidate list.
+
+    Args:
+        dense_documents: Candidates from semantic similarity search.
+        sparse_documents: Candidates from keyword search.
+        query_features: Parsed query intent and hints.
+
+    Returns:
+        Merged candidate list sorted by combined score.
+    """
     merged_scores: dict[str, tuple[float, int, Document]] = {}
 
     for index, document in enumerate(dense_documents):
@@ -53,6 +75,14 @@ def merge_candidates(
 
 
 def document_key(document: Document) -> str:
+    """Builds stable key for deduplicating candidate documents.
+
+    Args:
+        document: Document to identify.
+
+    Returns:
+        Deterministic key derived from metadata and content.
+    """
     metadata = document.metadata
     source = str(metadata.get("source") or "")
     chunk_index = str(metadata.get("chunk_index") or "")
@@ -64,6 +94,15 @@ def document_key(document: Document) -> str:
 
 
 def score_document(document: Document, query_features: QueryFeatures) -> int:
+    """Computes relevance score of a document for parsed query features.
+
+    Args:
+        document: Document to score.
+        query_features: Parsed query intent and hints.
+
+    Returns:
+        Integer relevance score.
+    """
     metadata = document.metadata
     text_lower = document.page_content.lower()
     score = 0

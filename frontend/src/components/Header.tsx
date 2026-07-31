@@ -1,9 +1,16 @@
 import type { ApiStatus } from '../types'
 
+/**
+ * Props for the top header section.
+ */
 type HeaderProps = {
+  /** Current backend connectivity status shown to the user. */
   apiStatus: ApiStatus
 }
 
+/**
+ * Displays application title and backend status indicator.
+ */
 export function Header({ apiStatus }: HeaderProps) {
   return (
     <header className="rounded-lg border border-slate-200 bg-white p-4">
@@ -22,6 +29,9 @@ export function Header({ apiStatus }: HeaderProps) {
   )
 }
 
+/**
+ * Maps API status values to semantic text color classes.
+ */
 function statusColor(status: ApiStatus) {
   if (status === 'online') {
     return 'text-emerald-700'

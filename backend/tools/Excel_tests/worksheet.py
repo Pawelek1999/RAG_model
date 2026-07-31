@@ -1,3 +1,5 @@
+"""Worksheet abstraction exposing normalized cell access utilities."""
+
 from __future__ import annotations
 
 import logging
@@ -12,22 +14,44 @@ logger = logging.getLogger(__name__)
 
 
 class ExcelWorksheet:
+    """Provides typed access to worksheet cells and iteration helpers."""
+
     def __init__(self, worksheet: Worksheet) -> None:
+        """Wraps an openpyxl worksheet instance.
+
+        Args:
+            worksheet: Source worksheet object.
+        """
         self._worksheet = worksheet
 
     @property
     def name(self) -> str:
+        """Returns worksheet display name."""
         return self._worksheet.title
 
     @property
     def max_row(self) -> int:
+        """Returns index of last populated row reported by openpyxl."""
         return self._worksheet.max_row
 
     @property
     def max_column(self) -> int:
+        """Returns index of last populated column reported by openpyxl."""
         return self._worksheet.max_column
 
     def get_cell(self, row: int, column: int) -> ExcelCell:
+        """Returns normalized cell representation for given coordinates.
+
+        Args:
+            row: One-based row index.
+            column: One-based column index.
+
+        Returns:
+            Normalized ExcelCell payload.
+
+        Raises:
+            ValueError: When row or column index is invalid.
+        """
         if row < 1 or column < 1:
             raise ValueError("Row and column indexes must be greater than 0")
 
@@ -46,6 +70,7 @@ class ExcelWorksheet:
         return excel_cell
 
     def iter_rows(self) -> Iterator[list[ExcelCell]]:
+        """Iterates over worksheet rows as normalized cell lists."""
         for row_idx in range(1, self.max_row + 1):
             yield [
                 self.get_cell(row=row_idx, column=column_idx)
@@ -53,6 +78,7 @@ class ExcelWorksheet:
             ]
 
     def iter_cells(self) -> Iterator[ExcelCell]:
+        """Iterates over all worksheet cells in row-major order."""
         for row in self.iter_rows():
             for cell in row:
                 yield cell

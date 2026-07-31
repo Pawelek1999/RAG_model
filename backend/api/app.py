@@ -1,3 +1,5 @@
+"""FastAPI application factory and HTTP middleware wiring for the RAG backend."""
+
 import logging
 import time
 import uuid
@@ -18,7 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 def configure_logging() -> None:
-    # Ustawia jednolity format logow backendu.
+    """Configures process-wide logging used by the API runtime.
+
+    The configuration injects request identifiers into log records and reduces
+    noise from third-party access logs.
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s [%(name)s] req=%(request_id)s %(message)s",
@@ -28,6 +34,7 @@ def configure_logging() -> None:
     current_factory = logging.getLogRecordFactory()
 
     def record_factory(*args, **kwargs):
+        """Ensures every log record contains request_id used by formatters."""
         record = current_factory(*args, **kwargs)
         if not hasattr(record, "request_id"):
             record.request_id = get_request_id()
@@ -46,8 +53,12 @@ def configure_logging() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-# Tworzy aplikacje FastAPI i podpina wszystkie routery API.
 def create_app() -> FastAPI:
+    """Builds and configures the FastAPI application instance.
+
+    Returns:
+        Fully configured FastAPI application with middleware and routers.
+    """
     configure_logging()
 
     app = FastAPI(
@@ -58,6 +69,7 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
+        """Logs request lifecycle and attaches X-Request-ID response header."""
         request_id = uuid.uuid4().hex[:8]
         started_at = time.perf_counter()
         token = set_request_id(request_id)

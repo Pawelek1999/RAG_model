@@ -1,13 +1,22 @@
+"""Document chunking utilities used before embedding and indexing."""
+
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-# Klasa DocumentChunker sluzy do dzielenia dokumentow LangChain na mniejsze
-# fragmenty tekstu, ktore pozniej mozna zamienic na embeddingi i zapisac
-# w bazie wektorowej.
 class DocumentChunker:
+    """Splits LangChain documents into overlap-aware chunks for retrieval."""
+
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200) -> None:
-        # Ustawia parametry dzielenia tekstu i tworzy splitter LangChain.
+        """Creates a text splitter with validated chunking parameters.
+
+        Args:
+            chunk_size: Maximum characters per chunk.
+            chunk_overlap: Overlap size shared between adjacent chunks.
+
+        Raises:
+            ValueError: If chunking parameters are inconsistent.
+        """
         self._validate_settings(chunk_size, chunk_overlap)
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -17,7 +26,14 @@ class DocumentChunker:
         )
 
     def split(self, documents: list[Document]) -> list[Document]:
-        # Dzieli liste dokumentow na chunki i zwraca liste nowych Document.
+        """Splits a list of documents and enriches chunk metadata.
+
+        Args:
+            documents: Source documents to split.
+
+        Returns:
+            Chunked documents with chunk index metadata.
+        """
         if not documents:
             return []
 
@@ -25,7 +41,14 @@ class DocumentChunker:
         return self._add_chunk_metadata(chunks)
 
     def split_one(self, document: Document) -> list[Document]:
-        # Dzieli jeden dokument na chunki.
+        """Splits a single document into chunks.
+
+        Args:
+            document: Source document to split.
+
+        Returns:
+            Chunked representation of the provided document.
+        """
         return self.split([document])
 
     def _validate_settings(self, chunk_size: int, chunk_overlap: int) -> None:

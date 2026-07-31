@@ -1,3 +1,5 @@
+"""Color classification utilities for Excel row-type detection logic."""
+
 from __future__ import annotations
 
 from .cell import ExcelCell
@@ -5,7 +7,14 @@ from .config import EXCEL_COLORS
 
 
 class ColorDetector:
+    """Checks whether worksheet cells match configured semantic colors."""
+
     def __init__(self, colors: dict[str, list[str]] | None = None) -> None:
+        """Initializes detector with normalized color palette.
+
+        Args:
+            colors: Optional color map overriding default palette.
+        """
         source = colors or EXCEL_COLORS
         self._colors = {
             key.upper(): [self._normalize(value) for value in values]
@@ -13,15 +22,19 @@ class ColorDetector:
         }
 
     def is_blue(self, cell: ExcelCell) -> bool:
+        """Returns True when cell fill matches configured blue variants."""
         return self._cell_fill_matches(cell, "BLUE")
 
     def is_salmon(self, cell: ExcelCell) -> bool:
+        """Returns True when cell fill matches configured salmon variants."""
         return self._cell_fill_matches(cell, "SALMON")
 
     def is_gray(self, cell: ExcelCell) -> bool:
+        """Returns True when cell fill matches any configured gray variants."""
         return self._cell_fill_matches(cell, "GRAY_LIGHT") or self._cell_fill_matches(cell, "GRAY_DARK")
 
     def is_white(self, cell: ExcelCell) -> bool:
+        """Returns True when cell is unfilled or matches configured white variants."""
         if cell.fill_color is None:
             return True
         return self._cell_fill_matches(cell, "WHITE")

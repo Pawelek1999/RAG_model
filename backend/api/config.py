@@ -1,3 +1,5 @@
+"""Runtime configuration objects used by the backend API and services."""
+
 import os
 from pathlib import Path
 
@@ -6,8 +8,9 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = BACKEND_ROOT.parent
 
 
-# Klasa ApiSettings przechowuje podstawowa konfiguracje API i modeli.
 class ApiSettings:
+    """Provides validated access to environment-driven backend settings."""
+
     def __init__(
         self,
         chroma_directory: str | Path | None = None,
@@ -22,7 +25,21 @@ class ApiSettings:
         rag_fact_max_items: int | None = None,
         rag_fact_include_raw_snippets: bool | None = None,
     ) -> None:
-        # Ustawia sciezki, nazwy modeli i domyslne parametry wyszukiwania.
+        """Initializes settings from explicit arguments or environment variables.
+
+        Args:
+            chroma_directory: Optional path for persisted vector database.
+            docs_directory: Optional path for uploaded source documents.
+            collection_name: Optional Chroma collection name.
+            embedding_model: Optional embedding model identifier.
+            llm_model: Optional generation model identifier.
+            ollama_base_url: Optional Ollama API base URL.
+            default_k: Optional default retrieval size.
+            xlsx_loader_mode: Optional loader mode for spreadsheet ingestion.
+            rag_fact_mode: Optional context preparation mode.
+            rag_fact_max_items: Optional maximum number of facts in context.
+            rag_fact_include_raw_snippets: Optional flag for raw context fallback.
+        """
         self.chroma_directory = Path(
             chroma_directory
             or os.getenv("CHROMA_DIRECTORY")

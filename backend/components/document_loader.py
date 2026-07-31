@@ -1,3 +1,5 @@
+"""Document loading layer converting supported files into LangChain documents."""
+
 import logging
 import os
 import re
@@ -15,17 +17,20 @@ from backend.tools.Excel_tests import ExcelJsonFormatter, ExcelWorkbook, JsonFor
 logger = logging.getLogger(__name__)
 
 
-# Klasa DocumentLoader sluzy do wczytywania plikow z dysku i zamiany ich
-# na obiekty Document zgodne z LangChain, ktore pozniej mozna dzielic
-# na chunki, embedowac i zapisywac w bazie wektorowej.
 class DocumentLoader:
+    """Loads supported file types and normalizes them into document objects."""
+
     _TEST_SEQUENCE_PATTERN = re.compile(
         r"^(?P<prefix>[A-Za-z0-9]+_)?(?P<test_number>\d{5})\.(?P<step_number>\d{3})$"
     )
     _BUG_NUMBER_PATTERN = re.compile(r"\bBUG(?:\s*NB)?\s*[:#-]?\s*(?P<bug_number>\d+)\b", re.IGNORECASE)
 
     def __init__(self, xlsx_mode: str | None = None) -> None:
-        # Mapa laczy rozszerzenie pliku z metoda, ktora potrafi go wczytac.
+        """Initializes loader mappings and spreadsheet loading strategy.
+
+        Args:
+            xlsx_mode: Spreadsheet mode: auto, standard, or test-oriented.
+        """
         self._xlsx_mode = self._normalize_xlsx_mode(
             xlsx_mode or os.getenv("XLSX_LOADER_MODE", "auto")
         )
@@ -38,7 +43,18 @@ class DocumentLoader:
         }
 
     def load(self, file_path: str | Path) -> list[Document]:
-        # Wczytuje plik, wykrywa jego typ i zwraca liste dokumentow LangChain.
+        """Loads one file and returns normalized LangChain documents.
+
+        Args:
+            file_path: Path to a supported document file.
+
+        Returns:
+            Documents extracted from the file.
+
+        Raises:
+            FileNotFoundError: When the path does not exist.
+            ValueError: When the path is invalid or extension unsupported.
+        """
         path = Path(file_path)
         self._validate_file(path)
 
@@ -67,7 +83,11 @@ class DocumentLoader:
             raise
 
     def supported_extensions(self) -> list[str]:
-        # Zwraca liste rozszerzen plikow obslugiwanych przez loader.
+        """Returns supported file extensions.
+
+        Returns:
+            Sorted list of recognized extensions.
+        """
         return sorted(self._loaders)
 
     def _validate_file(self, path: Path) -> None:

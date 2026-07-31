@@ -1,3 +1,5 @@
+"""RAG endpoints for asking questions, ingesting files, and polling ingest progress."""
+
 import logging
 import time
 from pathlib import Path
@@ -25,7 +27,18 @@ def ask_question(
     request: AskRequest,
     rag_service: Annotated[RagApiService, Depends(get_rag_service)],
 ) -> AskResponse:
-    # Przyjmuje pytanie JSON i zwraca odpowiedz RAG razem ze zrodlami.
+    """Returns an answer and source references for a user question.
+
+    Args:
+        request: Question payload with optional retrieval parameters.
+        rag_service: Service dependency handling retrieval and generation.
+
+    Returns:
+        Answer payload with generated text and traceable sources.
+
+    Raises:
+        HTTPException: When the request payload is invalid.
+    """
     started_at = time.perf_counter()
     logger.info("ask-start k=%s question_len=%s", request.k, len(request.question))
 
@@ -59,7 +72,19 @@ def ingest_document(
     x_upload_id: Annotated[str | None, Header()] = None,
     rag_service: Annotated[RagApiService, Depends(get_rag_service)] = None,
 ) -> IngestResponse:
-    # Przyjmuje plik przez API, zapisuje go lokalnie i indeksuje w ChromaDB.
+    """Uploads and indexes a document in the vector store.
+
+    Args:
+        file: Uploaded file stream.
+        x_upload_id: Optional tracking identifier used by progress polling.
+        rag_service: Service dependency responsible for indexing.
+
+    Returns:
+        Ingestion summary with document and chunk counters.
+
+    Raises:
+        HTTPException: When validation or indexing fails.
+    """
     started_at = time.perf_counter()
     file_name = Path(file.filename or "").name
     logger.info("ingest-start file_name=%s", file_name or "<empty>")
@@ -106,7 +131,7 @@ def ingest_document(
     )
 
     def report_service_progress(service_percent: int, service_message: str) -> None:
-        # Przelicza postep warstwy serwisowej (0-100) na etap przetwarzania API.
+        """Maps service-level progress into API-level progress percentages."""
         mapped_percent = 20 + int(service_percent * 0.75)
         _update_ingest_progress(
             upload_id=x_upload_id,
@@ -168,6 +193,17 @@ def ingest_document(
 
 @router.get("/ingest/progress/{upload_id}", response_model=IngestProgressResponse)
 def get_ingest_progress(upload_id: str) -> IngestProgressResponse:
+    """Returns current ingestion progress for a previously started upload.
+
+    Args:
+        upload_id: Upload identifier provided during ingestion.
+
+    Returns:
+        Progress snapshot for the upload.
+
+    Raises:
+        HTTPException: When no progress entry exists for the identifier.
+    """
     progress = _get_ingest_progress(upload_id)
 
     if progress is None:

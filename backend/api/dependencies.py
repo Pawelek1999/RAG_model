@@ -1,3 +1,5 @@
+"""Dependency providers shared across FastAPI routers."""
+
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -7,9 +9,13 @@ if TYPE_CHECKING:
     from backend.api.services import RagApiService
 
 
-# Tworzy wspolny serwis RAG dla endpointow API.
 @lru_cache(maxsize=1)
 def get_rag_service() -> "RagApiService":
+    """Returns a cached RAG service instance for dependency injection.
+
+    Returns:
+        Singleton-like service object reused by request handlers.
+    """
     from backend.api.services import RagApiService
 
     return RagApiService(settings=settings)

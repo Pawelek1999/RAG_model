@@ -1,3 +1,5 @@
+"""Normalized cell model used across Excel parsing helpers."""
+
 from dataclasses import dataclass
 
 
@@ -6,6 +8,8 @@ CellValue = str | int | float | None
 
 @dataclass(slots=True)
 class ExcelCell:
+    """Represents worksheet cell value and visual metadata relevant to parsing."""
+
     row: int
     column: int
     coordinate: str
@@ -17,6 +21,11 @@ class ExcelCell:
     is_merged: bool
 
     def is_empty(self) -> bool:
+        """Checks whether the cell contains a meaningful value.
+
+        Returns:
+            True when value is None or blank text.
+        """
         if self.value is None:
             return True
 
@@ -26,6 +35,7 @@ class ExcelCell:
         return False
 
     def as_string(self) -> str:
+        """Returns cell value converted to string representation."""
         if self.value is None:
             return ""
         return str(self.value)

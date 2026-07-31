@@ -1,3 +1,5 @@
+"""Application service layer used by API routers to execute RAG operations."""
+
 import logging
 import time
 from pathlib import Path
@@ -20,10 +22,15 @@ from backend.components.VectorStoreManager.service import VectorStoreManager
 logger = logging.getLogger(__name__)
 
 
-# Klasa RagApiService laczy endpointy API z istniejacymi klasami backendu RAG.
 class RagApiService:
+    """Coordinates document ingestion, retrieval, and answer generation for API endpoints."""
+
     def __init__(self, settings: ApiSettings) -> None:
-        # Buduje wspolne komponenty, ktore moga byc uzywane przez endpointy.
+        """Initializes reusable RAG components shared across requests.
+
+        Args:
+            settings: Runtime configuration for models, storage, and retrieval.
+        """
         self.settings = settings
         self.loader = DocumentLoader(xlsx_mode=settings.xlsx_loader_mode)
         self.chunker = DocumentChunker()
@@ -56,7 +63,15 @@ class RagApiService:
         file_path: Path,
         on_progress: Callable[[int, str], None] | None = None,
     ) -> dict[str, int | str]:
-        # Wczytuje plik, dzieli go na chunki i zapisuje nowe chunki w ChromaDB.
+        """Indexes a file into the vector store and returns ingestion statistics.
+
+        Args:
+            file_path: Path to the source file that should be indexed.
+            on_progress: Optional callback receiving progress percent and message.
+
+        Returns:
+            Summary with file name and chunking/indexing counters.
+        """
         started_at = time.perf_counter()
         logger.info("service-ingest-start file_path=%s", file_path)
         if on_progress:
@@ -104,7 +119,15 @@ class RagApiService:
         }
 
     def ask(self, question: str, k: int) -> tuple[str, list[SourceResponse]]:
-        # Zadaje pytanie do RAG i zwraca odpowiedz razem ze zrodlami.
+        """Answers a question with RAG and returns supporting sources.
+
+        Args:
+            question: Natural language question from the user.
+            k: Requested number of top documents for retrieval.
+
+        Returns:
+            Tuple with model answer text and serialized source entries.
+        """
         started_at = time.perf_counter()
         logger.debug(
             "service-ask-start k=%s question_len=%s fact_mode=%s",
@@ -156,7 +179,11 @@ class RagApiService:
         return answer, sources
 
     def list_documents(self) -> tuple[list[DocumentInfo], int]:
-        # Zwraca prosta liste plikow, ktore maja chunki zapisane w ChromaDB.
+        """Lists unique ingested documents and total number of stored chunks.
+
+        Returns:
+            Tuple containing document descriptors and global chunk count.
+        """
         logger.debug("service-list-documents-start")
         result = self.vector_store_manager.vector_store.get(include=["metadatas"])
         metadatas = result.get("metadatas") or []
@@ -197,11 +224,22 @@ class RagApiService:
         return documents, total_chunks_count
 
     def supported_extensions(self) -> list[str]:
-        # Zwraca formaty plikow obslugiwane przez loader.
+        """Returns file extensions accepted by the ingestion pipeline.
+
+        Returns:
+            Sorted list of supported file extensions.
+        """
         return self.loader.supported_extensions()
 
     def delete_document(self, source: str) -> DeleteDocumentResponse:
-        # Usuwa z ChromaDB wszystkie chunki powiazane z podanym zrodlem.
+        """Deletes all chunks associated with a source path.
+
+        Args:
+            source: Source identifier stored in document metadata.
+
+        Returns:
+            Deletion summary including removed and remaining chunk counts.
+        """
         logger.info("service-delete-document-start source=%s", source)
         deleted_count = self.vector_store_manager.delete_by_source(source)
         total_count = self.vector_store_manager.count_documents()

@@ -1,11 +1,20 @@
 import { type DragEvent, useState } from 'react'
 
+/**
+ * Props for the document upload dropzone.
+ */
 type UploadDropzoneProps = {
+  /** Disables file input while ingestion is running. */
   isIngesting: boolean
+  /** Global ingest progress percentage across selected files. */
   uploadProgress: number | null
+  /** Called when the user picks or drops files for ingestion. */
   onFilesSelected: (files: FileList) => void
 }
 
+/**
+ * Provides drag-and-drop and file picker ingestion entry point.
+ */
 export function UploadDropzone({
   isIngesting,
   uploadProgress,
@@ -13,6 +22,7 @@ export function UploadDropzone({
 }: UploadDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
 
+  /** Handles dropped files and forwards them to the parent callback. */
   const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
     event.preventDefault()
     setIsDragging(false)

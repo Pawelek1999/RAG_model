@@ -1,7 +1,14 @@
+/**
+ * Props for a transient status banner.
+ */
 type StatusMessageProps = {
+  /** Message content displayed to the user when not empty. */
   message: string
 }
 
+/**
+ * Renders a compact status banner for API and workflow feedback.
+ */
 export function StatusMessage({ message }: StatusMessageProps) {
   if (!message) {
     return null

@@ -14,6 +14,11 @@ import { StatusMessage } from './components/StatusMessage'
 import { UploadDropzone } from './components/UploadDropzone'
 import type { ApiStatus, ChatMessage } from './types'
 
+/**
+ * Main single-page container for document ingestion and RAG chat.
+ *
+ * Coordinates API calls, shared UI state, and cross-component interactions.
+ */
 function App() {
   const [documentsResponse, setDocumentsResponse] =
     useState<DocumentsApiResponse | null>(null)
@@ -169,6 +174,9 @@ function App() {
   )
 }
 
+/**
+ * Builds a user-facing source label from backend source metadata.
+ */
 function formatSource(source: {
   file_name: string | null
   page: number | null
@@ -185,6 +193,9 @@ function formatSource(source: {
   return parts.join(' - ') || 'Nieznane zrodlo'
 }
 
+/**
+ * Normalizes unknown failures into safe user-facing error messages.
+ */
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message

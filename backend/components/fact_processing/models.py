@@ -1,3 +1,5 @@
+"""Domain models describing normalized facts and traceability relationships."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -14,6 +16,8 @@ ALLOWED_STATUS_VALUES = {
 
 @dataclass(frozen=True)
 class StructuredFact:
+    """Normalized representation of one test-step fact extracted from context."""
+
     sheet_id: str | None
     test_number: str | None
     step_number: str | None
@@ -30,6 +34,11 @@ class StructuredFact:
     row_type: str | None = None
 
     def to_public_dict(self) -> dict[str, str | None]:
+        """Serializes fact fields exposed to LLM context payload.
+
+        Returns:
+            Dictionary with selected public fields.
+        """
         return {
             "sheet_id": self.sheet_id,
             "test_number": self.test_number,
@@ -45,6 +54,8 @@ class StructuredFact:
 
 @dataclass(frozen=True)
 class FactRef:
+    """Reference to a fact position used in relationship maps."""
+
     fact_index: int
     bug_number: str | None
     test_number: str | None
@@ -57,6 +68,11 @@ class FactRef:
     chunk_index: int | None
 
     def to_dict(self) -> dict[str, str | int | None]:
+        """Serializes reference metadata for JSON relationship payloads.
+
+        Returns:
+            Dictionary representation of this reference.
+        """
         return {
             "fact_index": self.fact_index,
             "bug_number": self.bug_number,
@@ -73,6 +89,8 @@ class FactRef:
 
 @dataclass(frozen=True)
 class FactRelationships:
+    """Indexes connecting bugs, tests, and sequences to fact references."""
+
     bug_to_steps: dict[str, list[FactRef]]
     test_to_steps: dict[str, list[FactRef]]
     sequence_to_fact: dict[str, FactRef]
@@ -80,5 +98,7 @@ class FactRelationships:
 
 @dataclass(frozen=True)
 class FactPreparationResult:
+    """Container with extracted facts and their computed relationships."""
+
     facts: list[StructuredFact]
     relationships: FactRelationships

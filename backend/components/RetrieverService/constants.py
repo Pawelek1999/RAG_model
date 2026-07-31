@@ -1,3 +1,5 @@
+"""Constants and regex patterns used by query feature extraction."""
+
 import re
 
 TEST_SEQUENCE_PATTERN = re.compile(

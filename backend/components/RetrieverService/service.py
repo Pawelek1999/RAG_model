@@ -1,3 +1,5 @@
+"""Retrieval orchestration that combines dense, sparse, and reranking stages."""
+
 import logging
 
 from langchain_core.documents import Document
@@ -15,12 +17,32 @@ logger = logging.getLogger(__name__)
 
 
 class RetrieverService:
+    """Retrieves and formats context documents for downstream RAG generation."""
+
     def __init__(self, vector_store_manager: VectorStoreManager, k: int = 4) -> None:
+        """Creates a retriever service with a default retrieval size.
+
+        Args:
+            vector_store_manager: Vector store access abstraction.
+            k: Default number of results returned for each query.
+        """
         self._validate_k(k)
         self.vector_store_manager = vector_store_manager
         self.k = k
 
     def retrieve(self, query: str, k: int | None = None) -> list[Document]:
+        """Retrieves documents relevant to a query using hybrid retrieval.
+
+        Args:
+            query: User query.
+            k: Optional retrieval size override.
+
+        Returns:
+            Ranked list of documents selected for context.
+
+        Raises:
+            ValueError: When query or retrieval size is invalid.
+        """
         self._validate_query(query)
         search_k = k if k is not None else self.k
         self._validate_k(search_k)
@@ -78,6 +100,15 @@ class RetrieverService:
         return documents
 
     def retrieve_context(self, query: str, k: int | None = None) -> str:
+        """Retrieves and renders context text for a query.
+
+        Args:
+            query: User query.
+            k: Optional retrieval size override.
+
+        Returns:
+            Human-readable context assembled from retrieved documents.
+        """
         documents = self.retrieve(query=query, k=k)
         return self.format_context(documents)
 
@@ -86,6 +117,15 @@ class RetrieverService:
         metadata_filter: dict[str, object],
         k: int | None = None,
     ) -> list[Document]:
+        """Retrieves documents matching metadata constraints.
+
+        Args:
+            metadata_filter: Chroma metadata predicate.
+            k: Optional result limit.
+
+        Returns:
+            Documents satisfying metadata filter.
+        """
         search_k = k if k is not None else self.k
         self._validate_k(search_k)
         return self.vector_store_manager.get_documents_by_metadata(
@@ -94,6 +134,14 @@ class RetrieverService:
         )
 
     def format_context(self, documents: list[Document]) -> str:
+        """Formats documents into a readable context block for prompting.
+
+        Args:
+            documents: Documents to format.
+
+        Returns:
+            Concatenated context string with source headers.
+        """
         if not documents:
             return ""
 
@@ -112,6 +160,14 @@ class RetrieverService:
         return "\n\n".join(chunks)
 
     def get_retriever(self, k: int | None = None):
+        """Returns a low-level retriever object from the vector store.
+
+        Args:
+            k: Optional retrieval size override.
+
+        Returns:
+            LangChain-compatible retriever instance.
+        """
         search_k = k if k is not None else self.k
         self._validate_k(search_k)
         return self.vector_store_manager.get_retriever(k=search_k)

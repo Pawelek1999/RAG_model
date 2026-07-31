@@ -1,32 +1,66 @@
-# React + TypeScript + Vite
+# RAG Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Frontend application for document ingestion and RAG chat.
 
-Currently, two official plugins are available:
+## Purpose
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The frontend provides a single-screen workflow to:
 
-## React Compiler
+- upload files for indexing,
+- list indexed documents,
+- delete indexed document chunks,
+- ask questions against indexed content,
+- display assistant answers with source references.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the Oxlint configuration
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Run locally
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+1. Install dependencies.
+2. Start the development server.
+
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+By default, the frontend expects the backend API at:
+
+- `http://127.0.0.1:8000`
+
+You can override it using:
+
+- `VITE_API_URL`
+
+## Environment
+
+Create an `.env` file in `frontend/` when needed:
+
+```env
+VITE_API_URL=http://127.0.0.1:8000
+```
+
+## Architecture overview
+
+- `src/main.tsx`: application bootstrap.
+- `src/App.tsx`: top-level state orchestration and feature composition.
+- `src/components/*`: UI sections for chat, documents, upload, and status.
+- `src/api/ragApi.ts`: backend communication and ingest progress handling.
+- `src/types.ts`: shared UI message and status types.
+
+## Data flow
+
+1. User action in a component triggers a handler from `App.tsx`.
+2. `App.tsx` calls an API function from `src/api/ragApi.ts`.
+3. API response updates local state in `App.tsx`.
+4. Updated state is rendered by presentational components.
+
+## Notes
+
+- Current architecture is intentionally simple and single-page.
+- Routing, custom hooks, and context providers can be introduced when feature scope grows.

@@ -1,3 +1,5 @@
+"""Formatting pipeline that converts Excel test sheets into structured JSON."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -13,6 +15,8 @@ from .workbook import ExcelWorkbook
 
 @dataclass(slots=True)
 class ExcelColumnLayout:
+    """Column index mapping for test workbook fields."""
+
     importance: int = 1
     test_sequence_number: int = 2
     revision: int = 3
@@ -25,6 +29,8 @@ class ExcelColumnLayout:
 
 @dataclass(slots=True)
 class JsonFormattingOptions:
+    """Behavior flags controlling workbook-to-JSON formatting."""
+
     stop_on_intentionally_blank: bool = True
     include_raw_rows: bool = False
     filter_sheets_from_prefix: str | None = "AA"
@@ -39,11 +45,27 @@ class ExcelJsonFormatter:
         colors: dict[str, list[str]] | None = None,
         options: JsonFormattingOptions | None = None,
     ) -> None:
+        """Initializes formatter dependencies and parsing options.
+
+        Args:
+            column_layout: Optional explicit worksheet column mapping.
+            colors: Optional custom color palette used for row classification.
+            options: Optional formatter behavior overrides.
+        """
         self._columns = column_layout or ExcelColumnLayout()
         self._colors = ColorDetector(colors=colors)
         self._options = options or JsonFormattingOptions()
 
     def format_workbook(self, workbook_path: str | Path, sheet_names: list[str] | None = None) -> dict[str, Any]:
+        """Formats selected workbook sheets into structured JSON payload.
+
+        Args:
+            workbook_path: Path to source workbook.
+            sheet_names: Optional list limiting processed sheets.
+
+        Returns:
+            JSON-serializable workbook payload.
+        """
         workbook = ExcelWorkbook.load(workbook_path)
         names = sheet_names or workbook.get_sheet_names()
         names = self._select_sheet_names(names)
@@ -438,6 +460,17 @@ class ExcelJsonFormatter:
 
 
 def validate_sheet_names(sheet_names: list[str]) -> list[str]:
+    """Validates explicit sheet names passed to formatter.
+
+    Args:
+        sheet_names: Candidate sheet names.
+
+    Returns:
+        Cleaned non-empty sheet name list.
+
+    Raises:
+        ExcelParsingError: When no valid sheet name remains.
+    """
     cleaned = [name.strip() for name in sheet_names if name.strip()]
     if not cleaned:
         raise ExcelParsingError("At least one valid sheet name is required.")

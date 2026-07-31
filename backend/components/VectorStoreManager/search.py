@@ -1,3 +1,5 @@
+"""Search helpers for similarity and keyword lookups in the vector store."""
+
 import logging
 from typing import Any
 
@@ -13,6 +15,20 @@ def similarity_search(
     k: int = 4,
     metadata_filter: dict[str, Any] | None = None,
 ) -> list[Document]:
+    """Runs vector similarity search with optional metadata constraints.
+
+    Args:
+        vector_store: Chroma-like vector store instance.
+        query: Query text for semantic search.
+        k: Maximum number of results.
+        metadata_filter: Optional metadata predicate.
+
+    Returns:
+        Matching documents ordered by similarity.
+
+    Raises:
+        ValueError: When query is empty or k is not positive.
+    """
     if not query or not query.strip():
         raise ValueError("Zapytanie nie moze byc puste")
 
@@ -41,6 +57,20 @@ def keyword_search(
     k: int = 20,
     metadata_filter: dict[str, Any] | None = None,
 ) -> list[Document]:
+    """Performs keyword scoring over stored document text and metadata.
+
+    Args:
+        vector_store: Chroma-like vector store instance.
+        query_terms: Query tokens used for sparse matching.
+        k: Maximum number of returned documents.
+        metadata_filter: Optional metadata predicate.
+
+    Returns:
+        Documents ranked by keyword overlap score.
+
+    Raises:
+        ValueError: When k is not positive.
+    """
     if k <= 0:
         raise ValueError("k musi byc wieksze od 0")
 

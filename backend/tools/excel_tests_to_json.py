@@ -1,13 +1,6 @@
 from __future__ import annotations
 
-"""
-CLI tool for exporting test-oriented Excel sheets to JSON.
-
-Examples:
-    python backend/tools/excel_tests_to_json.py --input ./Docs/tests.xlsx
-    python backend/tools/excel_tests_to_json.py --input ./Docs/tests.xlsx --sheet "TAB_01"
-    python backend/tools/excel_tests_to_json.py --input ./Docs/tests.xlsx --output ./out/tests.json --include-raw
-"""
+"""CLI tool for exporting test-oriented Excel workbooks into JSON payloads."""
 
 import argparse
 import json
@@ -25,6 +18,11 @@ from Excel_tests.json_formatter import (
 
 
 def parse_args() -> argparse.Namespace:
+    """Parses command-line arguments for workbook-to-JSON export.
+
+    Returns:
+        Parsed CLI namespace.
+    """
     parser = argparse.ArgumentParser(
         description="Export structured JSON from Excel test workbook based on macro-compatible rules."
     )
@@ -67,6 +65,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_colors(path: Path | None) -> dict[str, list[str]] | None:
+    """Loads optional color configuration used during row classification.
+
+    Args:
+        path: Path to JSON color configuration file.
+
+    Returns:
+        Normalized color configuration or None.
+
+    Raises:
+        ExcelParsingError: When file is missing or invalid.
+    """
     if path is None:
         return None
 
@@ -93,6 +102,17 @@ def load_colors(path: Path | None) -> dict[str, list[str]] | None:
 
 
 def build_column_layout(args: argparse.Namespace) -> ExcelColumnLayout:
+    """Builds validated column mapping from CLI arguments.
+
+    Args:
+        args: Parsed CLI namespace.
+
+    Returns:
+        Column layout used by formatter.
+
+    Raises:
+        ExcelParsingError: When any column index is lower than one.
+    """
     values = [
         args.col_importance,
         args.col_test_sequence,
@@ -120,6 +140,11 @@ def build_column_layout(args: argparse.Namespace) -> ExcelColumnLayout:
 
 
 def main() -> int:
+    """Runs workbook export workflow and returns process exit code.
+
+    Returns:
+        Zero on success, non-zero when export fails.
+    """
     args = parse_args()
 
     try:

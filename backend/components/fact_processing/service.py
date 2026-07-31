@@ -1,3 +1,5 @@
+"""Fact preparation workflow used to build structured and hybrid RAG context."""
+
 from __future__ import annotations
 
 import json
@@ -12,6 +14,8 @@ from backend.components.fact_processing.parser import fact_from_document
 
 @dataclass(frozen=True)
 class PreparedContext:
+    """Prepared prompt context with provenance and query analysis metadata."""
+
     context: str
     context_kind: str
     context_documents: list[Document]
@@ -20,12 +24,21 @@ class PreparedContext:
 
 
 class FactPreparationLayer:
+    """Transforms retrieved documents into context tailored to query intent."""
+
     def __init__(
         self,
         retriever_service,
         max_items: int = 100,
         include_raw_snippets: bool = True,
     ) -> None:
+        """Initializes fact preparation policy.
+
+        Args:
+            retriever_service: Service used for contextual formatting and expansion.
+            max_items: Maximum number of selected facts.
+            include_raw_snippets: Whether hybrid mode should include raw snippets.
+        """
         self.retriever_service = retriever_service
         self.max_items = max(1, max_items)
         self.include_raw_snippets = include_raw_snippets
@@ -36,6 +49,16 @@ class FactPreparationLayer:
         retrieved_documents: list[Document],
         fact_mode: str,
     ) -> PreparedContext:
+        """Builds context for raw, structured, or hybrid answer generation.
+
+        Args:
+            question: User question used to infer intent.
+            retrieved_documents: Initial documents retrieved for the question.
+            fact_mode: Context mode: raw, structured, or hybrid.
+
+        Returns:
+            Prepared context bundle used by the answering layer.
+        """
         query_features = extract_query_features(question)
 
         if fact_mode == "raw":

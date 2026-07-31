@@ -1,19 +1,6 @@
 from __future__ import annotations
 
-"""
-Jak uruchomic skrypt:
-
-1) Z katalogu backend:
-    python tools/read_chunks.py
-
-2) Z katalogu glownego projektu:
-    python backend/tools/read_chunks.py
-
-Przyklady:
-    python tools/read_chunks.py --limit 10
-    python tools/read_chunks.py --collection rag_documents
-    python tools/read_chunks.py --limit 10 --save chunks.txt
-"""
+"""CLI diagnostics tool for inspecting persisted chunks in ChromaDB."""
 
 import argparse
 import json
@@ -27,6 +14,11 @@ SEPARATOR = "=" * 60
 
 
 def parse_args() -> argparse.Namespace:
+    """Parses command-line arguments for chunk diagnostics.
+
+    Returns:
+        Parsed CLI namespace.
+    """
     parser = argparse.ArgumentParser(
         description="Diagnostyczny odczyt chunkow z istniejacej bazy ChromaDB (read-only)."
     )
@@ -52,7 +44,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_db_path() -> Path:
-    # Szuka bazy w kilku typowych lokalizacjach niezaleznie od katalogu uruchomienia.
+    """Resolves ChromaDB directory from common project locations.
+
+    Returns:
+        First existing candidate path, or primary default candidate.
+    """
     script_path = Path(__file__).resolve()
     candidates = [
         (Path.cwd() / "chroma_db").resolve(),
@@ -96,6 +92,16 @@ def build_report(
     selected_collection: str | None,
     limit: int | None,
 ) -> tuple[str, int]:
+    """Builds text diagnostics report for one or many Chroma collections.
+
+    Args:
+        client: Initialized Chroma persistent client.
+        selected_collection: Optional single collection name.
+        limit: Optional per-collection number of displayed chunks.
+
+    Returns:
+        Tuple with report text and process exit code.
+    """
     lines: list[str] = []
     exit_code = 0
 
@@ -202,6 +208,11 @@ def build_report(
 
 
 def main() -> int:
+    """Executes CLI diagnostics flow and returns shell exit code.
+
+    Returns:
+        Zero on success, non-zero on validation or connection failures.
+    """
     args = parse_args()
 
     try:
