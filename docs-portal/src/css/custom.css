@@ -15,6 +15,30 @@
   --ifm-color-primary-lightest: #3cad6e;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Bump the overall text size — default Infima 100% (16px) reads small. */
+  --ifm-font-size-base: 110%;
+  --ifm-line-height-base: 1.65;
+}
+
+/* Infima renders navbar/sidebar/TOC links noticeably smaller than body text
+   by default (~0.8rem). Bring them closer to reading size. */
+.navbar__item,
+.navbar__link,
+.menu__link,
+.menu__list-item-collapsible,
+.table-of-contents__link,
+.breadcrumbs__link,
+.pagination-nav__link {
+  font-size: 1.05rem;
+}
+
+.navbar__title {
+  font-size: 1.2rem;
+}
+
+.menu__link {
+  line-height: 1.4;
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
