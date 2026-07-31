@@ -1,19 +1,6 @@
 from __future__ import annotations
 
-"""
-Jak uruchomic skrypt:
-
-1) Z katalogu backend:
-    python tools/read_chunks.py
-
-2) Z katalogu glownego projektu:
-    python backend/tools/read_chunks.py
-
-Przyklady:
-    python tools/read_chunks.py --limit 10
-    python tools/read_chunks.py --collection rag_documents
-    python tools/read_chunks.py --limit 10 --save chunks.txt
-"""
+"""CLI diagnostics tool for inspecting persisted chunks in ChromaDB."""
 
 import argparse
 import json
@@ -27,6 +14,11 @@ SEPARATOR = "=" * 60
 
 
 def parse_args() -> argparse.Namespace:
+    """Parses command-line arguments for chunk diagnostics.
+
+    Returns:
+        Parsed CLI namespace.
+    """
     parser = argparse.ArgumentParser(
         description="Diagnostyczny odczyt chunkow z istniejacej bazy ChromaDB (read-only)."
     )
@@ -52,17 +44,23 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_db_path() -> Path:
-    # Preferuje ./chroma_db, a przy uruchomieniu z backend/ probuje tez ../chroma_db.
-    cwd_path = Path("./chroma_db").resolve()
-    project_root_path = (Path(__file__).resolve().parents[2] / "chroma_db").resolve()
+    """Resolves ChromaDB directory from common project locations.
 
-    if cwd_path.exists():
-        return cwd_path
+    Returns:
+        First existing candidate path, or primary default candidate.
+    """
+    script_path = Path(__file__).resolve()
+    candidates = [
+        (Path.cwd() / "chroma_db").resolve(),
+        (script_path.parents[2] / "chroma_db").resolve(),  # root projektu
+        (script_path.parents[1] / "chroma_db").resolve(),  # backend/chroma_db
+    ]
 
-    if project_root_path.exists():
-        return project_root_path
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
 
-    return cwd_path
+    return candidates[0]
 
 
 def _collection_names(collections: list[Any]) -> list[str]:
@@ -94,6 +92,16 @@ def build_report(
     selected_collection: str | None,
     limit: int | None,
 ) -> tuple[str, int]:
+    """Builds text diagnostics report for one or many Chroma collections.
+
+    Args:
+        client: Initialized Chroma persistent client.
+        selected_collection: Optional single collection name.
+        limit: Optional per-collection number of displayed chunks.
+
+    Returns:
+        Tuple with report text and process exit code.
+    """
     lines: list[str] = []
     exit_code = 0
 
@@ -200,6 +208,11 @@ def build_report(
 
 
 def main() -> int:
+    """Executes CLI diagnostics flow and returns shell exit code.
+
+    Returns:
+        Zero on success, non-zero on validation or connection failures.
+    """
     args = parse_args()
 
     try:

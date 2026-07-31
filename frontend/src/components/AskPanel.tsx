@@ -1,15 +1,28 @@
 import type { ChatMessage } from '../types'
 
+/**
+ * Props for the AskPanel component.
+ */
 type AskPanelProps = {
+  /** Disables inputs and submit actions while a response is in progress. */
   isAsking: boolean
+  /** Full conversation history rendered in the chat area. */
   messages: ChatMessage[]
+  /** Current textarea value controlled by the parent container. */
   question: string
+  /** Number of retrieved chunks requested from the backend. */
   topK: number
+  /** Submits the current question to the backend. */
   onAsk: () => void
+  /** Updates the controlled question input in the parent state. */
   onQuestionChange: (question: string) => void
+  /** Updates retrieval depth in the parent state. */
   onTopKChange: (topK: number) => void
 }
 
+/**
+ * Renders the RAG chat area with message history and question composer.
+ */
 export function AskPanel({
   isAsking,
   messages,
@@ -89,7 +102,11 @@ export function AskPanel({
   )
 }
 
+/**
+ * Props for a single chat bubble row.
+ */
 type ChatBubbleProps = {
+  /** Chat item to render, including optional source references. */
   message: ChatMessage
 }
 

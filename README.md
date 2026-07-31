@@ -1,433 +1,354 @@
-# RAG Database
+# RAG_model
 
-Lokalna aplikacja RAG z backendem Python/FastAPI i frontendem React. Aplikacja pozwala wgrywac dokumenty, indeksowac je do lokalnej bazy ChromaDB, zadawac pytania w formie chatu i wyswietlac zrodla, z ktorych pochodzi odpowiedz.
+Lokalna aplikacja RAG (Retrieval-Augmented Generation) do pracy na wlasnych dokumentach.
+Projekt sklada sie z backendu FastAPI (Python) i frontendu React + Tailwind (Vite).
 
-Projekt jest budowany jako baza do kolejnych aplikacji: API, panelu dokumentow, chatbota nad prywatnymi danymi albo innych lokalnych narzedzi RAG.
+Aplikacja umozliwia:
+- indeksowanie dokumentow do ChromaDB,
+- zadawanie pytan do czatu RAG opartego o Ollama,
+- przegladanie listy dokumentow i zrodel odpowiedzi,
+- usuwanie dokumentow z indeksu wektorowego.
 
-## Aktualny uklad
+## Co robi ten program
 
-```text
-RAG_database/
-+-- backend/
-|   +-- api/
-|   |   +-- app.py
-|   |   +-- config.py
-|   |   +-- schemas.py
-|   |   +-- services.py
-|   |   +-- routers/
-|   +-- components/
-|   |   +-- document_loader.py
-|   |   +-- document_chunker.py
-|   |   +-- embedding_service.py
-|   |   +-- vector_store_manager.py
-|   |   +-- retriever_service.py
-|   |   +-- rag_application.py
-|   +-- main.py
-|   +-- requirements.txt
-+-- frontend/
-|   +-- src/
-|   |   +-- api/
-|   |   +-- components/
-|   |   +-- App.tsx
-+-- Docs/
-+-- chroma_db/
-+-- docker-compose.yml
-+-- README.md
-```
+1. Przyjmuje pliki (DOCX, PDF, TXT, MD, XLSX).
+2. Laduje tresc i dzieli ja na chunki.
+3. Tworzy embeddingi i zapisuje dane w ChromaDB.
+4. Dla pytania uzytkownika wykonuje retrieval hybrydowy (dense + keyword) i reranking.
+5. Przetwarza wyniki przez warstwe Fact Processing (FactPreparationLayer), ktora przygotowuje kontekst w trybie raw, structured albo hybrid.
+6. Buduje prompt na podstawie przygotowanego kontekstu i generuje odpowiedz z lokalnego modelu LLM przez Ollama.
 
-`Docs/` przechowuje przeslane dokumenty.  
-`chroma_db/` przechowuje lokalna baze wektorowa ChromaDB.  
-Oba foldery sa danymi lokalnymi i nie powinny trafiac do GitHuba.
+## Aktualna architektura
 
-## Glowne technologie
-
-Backend:
-
-- `FastAPI` - warstwa HTTP.
-- `LangChain` - obiekty dokumentow, retriever i integracja RAG.
-- `Ollama` - lokalne modele LLM i embeddingow.
-- `ChromaDB` - lokalna baza wektorowa.
-- `python-docx`, `pypdf`, `pandas`, `openpyxl` - odczyt dokumentow.
-
-Frontend:
-
-- `Vite`
-- `React`
-- `TypeScript`
-- `Tailwind CSS`
-
-Modele Ollama:
-
-```bash
-ollama pull nomic-embed-text
-ollama pull qwen2.5:7b
-```
-
-## Komponenty backendu
-
-- `DocumentLoader` - wczytuje pliki i zamienia je na dokumenty LangChain.
-- `DocumentChunker` - dzieli dokumenty na chunki.
-- `EmbeddingService` - tworzy embeddingi przez model `nomic-embed-text`.
-- `VectorStoreManager` - zapisuje, wyszukuje i usuwa chunki w ChromaDB.
-- `RetrieverService` - pobiera najbardziej podobne chunki dla pytania.
-- `RAGApplication` - buduje prompt i odpytuje lokalny model `qwen2.5:7b`.
-- `RagApiService` - laczy endpointy FastAPI z komponentami RAG.
-
-## Workflow aplikacji
+Najwazniejsze katalogi:
 
 ```text
-1. Uzytkownik otwiera frontend
-        |
-        v
-2. Frontend pobiera liste dokumentow
-   GET /documents
-        |
-        v
-3. Uzytkownik wrzuca dokument przez drag and drop
-        |
-        v
-4. Frontend wysyla plik do API
-   POST /ingest
-        |
-        v
-5. Backend zapisuje plik w Docs/
-        |
-        v
-6. DocumentLoader wczytuje dokument
-        |
-        v
-7. DocumentChunker dzieli dokument na chunki
-        |
-        v
-8. EmbeddingService tworzy embeddingi przez Ollama
-        |
-        v
-9. VectorStoreManager zapisuje chunki w chroma_db/
-        |
-        v
-10. Frontend odswieza liste dokumentow
-    GET /documents
+RAG_model/
+|- backend/
+|  |- api/
+|  |  |- app.py
+|  |  |- config.py
+|  |  |- dependencies.py
+|  |  |- schemas.py
+|  |  |- services.py
+|  |  |- routers/
+|  |     |- health.py
+|  |     |- rag.py
+|  |     |- documents.py
+|  |- components/
+|  |  |- document_loader.py
+|  |  |- document_chunker.py
+|  |  |- embedding_service.py
+|  |  |- fact_processing/
+|  |  |- rag_application.py
+|  |  |- RetrieverService/
+|  |  |- VectorStoreManager/
+|- frontend/
+|  |- src/
+|     |- api/ragApi.ts
+|     |- components/
+|- Docs/
+|- chroma_db/
+|- docker-compose.yml
 ```
 
-Workflow pytania:
+Kluczowe elementy backendu:
+- DocumentLoader: ladowanie i normalizacja plikow do LangChain Document.
+- DocumentChunker: podzial na chunki.
+- VectorStoreManager: zapis/deduplikacja/wyszukiwanie/usuwanie w Chroma.
+- RetrieverService: retrieval hybrydowy i reranking.
+- FactPreparationLayer: przygotowanie kontekstu faktowego (structured/hybrid/raw).
+- RAGApplication: budowa promptu i zapytanie do modelu przez Ollama.
+- RagApiService: spina endpointy API z logika RAG.
 
-```text
-1. Uzytkownik wpisuje pytanie w chacie
-        |
-        v
-2. Frontend wysyla JSON do API
-   POST /ask
-        |
-        v
-3. RetrieverService szuka podobnych chunkow w ChromaDB
-        |
-        v
-4. RAGApplication buduje prompt z kontekstem
-        |
-        v
-5. Ollama generuje odpowiedz
-        |
-        v
-6. API zwraca odpowiedz i zrodla
-        |
-        v
-7. Frontend pokazuje wiadomosc asystenta oraz liste zrodel
-```
+## Workflow
 
-Workflow usuwania:
+### 1) Ingest dokumentu
 
-```text
-1. Uzytkownik klika "Usun" przy dokumencie
-        |
-        v
-2. Frontend wysyla source dokumentu
-   POST /documents/delete
-        |
-        v
-3. Backend usuwa z ChromaDB wszystkie chunki z tym source
-        |
-        v
-4. Frontend odswieza liste dokumentow
-```
+1. Frontend wysyla plik na POST /ingest.
+2. Frontend ustawia X-Upload-Id i pyta o postep GET /ingest/progress/{upload_id}.
+3. Backend zapisuje plik do katalogu Docs/ (z unikalna nazwa przy kolizji).
+4. DocumentLoader laduje dokument.
+5. DocumentChunker dzieli go na chunki.
+6. VectorStoreManager zapisuje nowe chunki do ChromaDB (z deduplikacja).
+7. Frontend odswieza liste dokumentow.
 
-## API
+### 2) Ask (chat RAG)
 
-Domyslny adres API:
+1. Frontend wysyla POST /ask z question i k.
+2. RetrieverService pobiera kandydatow (dense + sparse) i robi rerank.
+3. FactPreparationLayer buduje kontekst (raw/structured/hybrid).
+4. RAGApplication wywoluje model LLM przez Ollama.
+5. API zwraca answer i sources.
 
-```text
-http://127.0.0.1:8000
-```
+### 3) Delete dokumentu
 
-Dokumentacja Swagger:
+1. Frontend wysyla POST /documents/delete (lub DELETE /documents?source=...).
+2. Backend usuwa wszystkie chunki powiazane z danym source.
+3. Frontend odswieza liste dokumentow.
 
-```text
-http://127.0.0.1:8000/docs
-```
+## Wymagania
 
-### GET /health
+- Python 3.12+
+- Node.js 22+
+- npm
+- Dzialajacy Ollama (lokalnie lub pod wskazanym OLLAMA_BASE_URL)
+- Opcjonalnie: Docker + Docker Compose
 
-Sprawdza, czy API dziala.
+## Instalacja i uruchomienie
 
-Przykladowa odpowiedz:
-
-```json
-{
-  "status": "ok",
-  "service": "rag-api"
-}
-```
-
-### GET /documents
-
-Zwraca dokumenty zapisane w ChromaDB.
-
-Przykladowa odpowiedz:
-
-```json
-{
-  "documents": [
-    {
-      "file_name": "Dane_RAG.docx",
-      "file_type": "docx",
-      "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx",
-      "chunks_count": 7
-    }
-  ],
-  "total_chunks_count": 7
-}
-```
-
-### POST /ingest
-
-Przyjmuje plik jako `multipart/form-data`, zapisuje go w `Docs/` i indeksuje w ChromaDB.
-
-Jesli plik o tej samej nazwie juz istnieje, backend nie nadpisuje go, tylko tworzy nazwe typu:
-
-```text
-plik_1.docx
-plik_2.docx
-```
-
-Przykladowa odpowiedz:
-
-```json
-{
-  "file_name": "Dane_RAG.docx",
-  "documents_count": 1,
-  "chunks_count": 7,
-  "added_chunks_count": 7,
-  "total_chunks_count": 7
-}
-```
-
-### POST /ask
-
-Zadaje pytanie do RAG.
-
-Przykladowe zapytanie:
-
-```json
-{
-  "question": "Kiedy zalozono firme?",
-  "k": 4
-}
-```
-
-Przykladowa odpowiedz:
-
-```json
-{
-  "answer": "Firma zostala zalozona w 2020 roku.",
-  "sources": [
-    {
-      "file_name": "Dane_RAG.docx",
-      "file_type": "docx",
-      "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx",
-      "page": null,
-      "sheet_name": null,
-      "chunk_index": 4
-    }
-  ]
-}
-```
-
-### POST /documents/delete
-
-Usuwa dokument z ChromaDB po polu `source`.
-
-Przykladowe zapytanie:
-
-```json
-{
-  "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx"
-}
-```
-
-Przykladowa odpowiedz:
-
-```json
-{
-  "source": "D:\\Projekty\\RAG_database\\Docs\\Dane_RAG.docx",
-  "deleted_chunks_count": 7,
-  "total_chunks_count": 0
-}
-```
-
-API ma tez endpoint:
-
-```text
-DELETE /documents?source=...
-```
-
-Frontend uzywa jednak `POST /documents/delete`, bo jest wygodniejszy dla JSON body.
-
-## Frontend
-
-Frontend jest prostym panelem do pracy z API.
-
-Aktualnie zawiera:
-
-- status API,
-- drag and drop do uploadu dokumentow,
-- liste dokumentow z ChromaDB,
-- przycisk usuwania dokumentu,
-- chat RAG,
-- wyswietlanie zrodel odpowiedzi.
-
-Frontend komunikuje sie z API przez [ragApi.ts](frontend/src/api/ragApi.ts).
-
-Domyslny adres API we frontendzie:
-
-```text
-http://127.0.0.1:8000
-```
-
-Mozna go zmienic przez zmienna:
-
-```text
-VITE_API_URL=http://127.0.0.1:8000
-```
-
-## Uruchomienie
-
-### Docker
-
-Najprostsze uruchomienie calej aplikacji:
+### Opcja A: Docker Compose (najprosciej)
 
 ```bash
 docker compose up --build
 ```
 
-Adresy:
+Domyslne adresy:
+- Frontend: http://127.0.0.1:5173
+- API: http://127.0.0.1:8000
+- Swagger: http://127.0.0.1:8000/docs
 
-```text
-Frontend: http://127.0.0.1:5173
-API:      http://127.0.0.1:8000
-Swagger:  http://127.0.0.1:8000/docs
+Uwagi:
+- Volume utrwalony jest dla chroma_db.
+- Folder Docs nie jest podmontowany jako volume w aktualnym docker-compose.yml.
+- Kontenery zakladaja, ze Ollama jest dostepna pod host.docker.internal:11434.
+
+### Opcja B: lokalnie (bez Dockera)
+
+1. Sklonuj repo i przejdz do katalogu projektu.
+2. Utworz oraz aktywuj virtualenv backendu.
+3. Zainstaluj zaleznosci backendu.
+4. Uruchom API FastAPI.
+5. Zainstaluj zaleznosci frontendu i uruchom Vite.
+
+Backend (PowerShell):
+
+```powershell
+python -m venv backend/.venv
+backend/.venv/Scripts/Activate.ps1
+pip install -r backend/requirements.txt
+python -m uvicorn backend.api.app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Compose zaklada, ze Ollama dziala lokalnie poza Dockerem na hoście:
-
-```text
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-```
-
-Foldery `Docs/` i `chroma_db/` sa podmontowane jako volume, wiec dokumenty i baza wektorowa zostaja na dysku projektu po zatrzymaniu kontenerow.
-
-### 1. Uruchom Ollama
-
-Upewnij sie, ze Ollama dziala i modele sa pobrane:
+Backend (bash):
 
 ```bash
-ollama pull nomic-embed-text
-ollama pull qwen2.5:7b
+python -m venv backend/.venv
+source backend/.venv/bin/activate
+pip install -r backend/requirements.txt
+python -m uvicorn backend.api.app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### 2. Uruchom backend API
-
-Z katalogu glownego projektu:
+Frontend:
 
 ```bash
-cd D:\Projekty\RAG_database
-.\backend\.venv\Scripts\python.exe -m uvicorn backend.api.app:app --host 127.0.0.1 --port 8000
-```
-
-Sprawdzenie:
-
-```text
-http://127.0.0.1:8000/health
-```
-
-### 3. Uruchom frontend
-
-W drugim terminalu:
-
-```bash
-cd D:\Projekty\RAG_database\frontend
+cd frontend
+npm install
 npm run dev
 ```
 
-Adres frontendu:
+## Modele Ollama
 
-```text
-http://127.0.0.1:5173
-```
-
-## CLI
-
-CLI nadal istnieje jako prosty tryb developerski.
-
-Z katalogu `backend`:
+Minimalnie wymagany embedding model:
 
 ```bash
-cd D:\Projekty\RAG_database\backend
-.\.venv\Scripts\python.exe main.py ingest Docs\plik.docx
-.\.venv\Scripts\python.exe main.py chat
+ollama pull nomic-embed-text
 ```
 
-Albo z katalogu glownego projektu:
+LLM zalezy od konfiguracji:
+- domyslnie w backendzie: SpeakLeash/bielik-4.5b-v3.0-instruct:Q8_0
+- w docker-compose.yml: qwen2.5:7b
+
+W praktyce warto pobrac oba:
 
 ```bash
-cd D:\Projekty\RAG_database
-.\backend\.venv\Scripts\python.exe -m backend.main ingest Docs\plik.docx
-.\backend\.venv\Scripts\python.exe -m backend.main chat
+ollama pull SpeakLeash/bielik-4.5b-v3.0-instruct:Q8_0
+ollama pull qwen2.5:7b
 ```
 
-CLI i API korzystaja z tej samej konfiguracji:
+## Konfiguracja (ENV)
 
-```text
-Docs/
-chroma_db/
-```
+Backend:
+- CHROMA_DIRECTORY: katalog bazy wektorowej (domyslnie: ./chroma_db)
+- DOCS_DIRECTORY: katalog uploadowanych dokumentow (domyslnie: ./Docs)
+- CHROMA_COLLECTION_NAME: nazwa kolekcji Chroma (domyslnie: rag_documents)
+- OLLAMA_BASE_URL: adres Ollama, np. http://127.0.0.1:11434
+- OLLAMA_EMBEDDING_MODEL: model embeddingow (domyslnie: nomic-embed-text)
+- OLLAMA_LLM_MODEL: model czatu LLM
+- DEFAULT_K: domyslna liczba chunkow (domyslnie: 4)
+- XLSX_LOADER_MODE: auto | standard | test-oriented
+- RAG_FACT_MODE: raw | structured | hybrid (domyslnie: hybrid)
+- RAG_FACT_MAX_ITEMS: limit rekordow faktowych (domyslnie: 120)
+- RAG_FACT_INCLUDE_RAW_SNIPPETS: true/false (domyslnie: true)
+
+Frontend:
+- VITE_API_URL: adres backendu (domyslnie: http://127.0.0.1:8000)
+
+## Tryby Fact Processing
+
+Projekt wspiera trzy tryby przygotowania kontekstu dla LLM, sterowane przez RAG_FACT_MODE:
+
+- raw
+	- Do modelu trafia surowy kontekst z retrievera (fragmenty dokumentow).
+	- Brak dodatkowej struktury faktow i relacji.
+	- Przydatny przy ogolnych pytaniach i szybkim prototypowaniu.
+
+- structured
+	- Dokumenty sa parsowane do faktow i relacji miedzy nimi.
+	- Kontekst zawiera sekcje STRUCTURED_FACTS, FACTS_JSON i RELATIONSHIPS_JSON.
+	- Najlepszy do pytan o testy, kroki i powiazania z bugami.
+
+- hybrid (domyslny)
+	- Laczy structured z dodatkowymi RAW_SNIPPETS jako fallback.
+	- Model najpierw korzysta z faktow/relacji, a surowe fragmenty dopelniaja brakujacy kontekst.
+	- Najbardziej uniwersalny tryb do codziennego uzycia.
+
+## API
+
+Domyslny adres API: http://127.0.0.1:8000
+
+### GET /health
+
+Do czego sluzy:
+- Prosty healthcheck backendu.
+
+Request:
+- Brak parametrow.
+
+Response 200:
+- status: ok
+- service: rag-api
+
+### GET /documents
+
+Do czego sluzy:
+- Zwraca liste dokumentow obecnych w indeksie ChromaDB.
+
+Request:
+- Brak parametrow.
+
+Response 200:
+- documents: lista obiektow z polami file_name, file_type, source, chunks_count
+- total_chunks_count: laczna liczba chunkow we wszystkich dokumentach
+
+### DELETE /documents?source=...
+
+Do czego sluzy:
+- Usuwa dokument po polu source (query param).
+
+Request:
+- Query param: source (wymagany, niepusty)
+
+Response 200:
+- source
+- deleted_chunks_count
+- total_chunks_count
+
+Typowe bledy:
+- 404 gdy nie znaleziono dokumentu dla podanego source.
+
+### POST /documents/delete
+
+Do czego sluzy:
+- Alternatywny endpoint usuwania dokumentu (JSON body zamiast query param).
+
+Request body:
+- source: string (wymagany)
+
+Response 200:
+- source
+- deleted_chunks_count
+- total_chunks_count
+
+Typowe bledy:
+- 404 gdy nie znaleziono dokumentu dla podanego source.
+
+### POST /ingest
+
+Do czego sluzy:
+- Upload i indeksowanie pliku do ChromaDB.
+
+Request:
+- multipart/form-data
+- pole file: UploadFile (wymagane)
+- header X-Upload-Id: string (opcjonalny, potrzebny do sledzenia postepu)
+
+Response 200:
+- file_name
+- documents_count
+- chunks_count
+- added_chunks_count
+- total_chunks_count
+
+Typowe bledy:
+- 400 dla pustej nazwy pliku lub nieobslugiwanego rozszerzenia
+- 500 dla bledow podczas zapisu/indeksowania
+
+### GET /ingest/progress/{upload_id}
+
+Do czego sluzy:
+- Zwraca postep ingestu dla upload_id przekazanego w X-Upload-Id.
+
+Request:
+- Path param: upload_id
+
+Response 200:
+- upload_id
+- progress_percent (0-100)
+- stage
+- status
+- message
+
+Typowe bledy:
+- 404 gdy brak postepu dla podanego upload_id (np. bledne ID lub wygasniety wpis).
+
+### POST /ask
+
+Do czego sluzy:
+- Przyjmuje pytanie i zwraca odpowiedz RAG wraz ze zrodlami.
+
+Request body:
+- question: string (wymagane)
+- k: int > 0 (opcjonalne, domyslnie 4)
+
+Response 200:
+- answer: string
+- sources: lista zrodel (m.in. file_name, file_type, source, page, sheet_name, row_index, status, anomaly, test_sequence_number, chunk_index)
+
+Typowe bledy:
+- 400 dla niepoprawnych danych wejsciowych (np. puste pytanie, niepoprawne k).
 
 ## Obslugiwane formaty dokumentow
 
-Aktualnie `DocumentLoader` obsluguje:
+- .docx
+- .pdf
+- .txt
+- .md
+- .xlsx
 
-- `.docx`
-- `.pdf`
-- `.txt`
-- `.md`
-- `.xlsx`
+Tryby XLSX:
+- standard: klasyczny odczyt arkuszy
+- test-oriented: mapowanie wierszy testowych do rekordow semantycznych
+- auto: automatyczny wybor trybu na podstawie workbooka
 
-## Zasada odpowiedzi RAG
+## Przydatne komendy developerskie
 
-Model nie powinien odpowiadac z samej wiedzy ogolnej. Najpierw aplikacja pobiera podobne chunki z ChromaDB, a dopiero potem przekazuje je do modelu jako kontekst.
+Frontend:
 
-Jesli w dokumentach nie ma odpowiedzi, aplikacja powinna odpowiedziec:
-
-```text
-Nie wiem. Nie znalazlem odpowiedzi w dostepnych dokumentach.
+```bash
+cd frontend
+npm run build
+npm run lint
+npm run preview
 ```
 
-## Uwagi developerskie
+## Znane ograniczenia
 
-- Po zmianach w backendzie trzeba zrestartowac `uvicorn`.
-- Jesli frontend pokazuje `API: offline`, sprawdz czy backend dziala na porcie `8000`.
-- Jesli port `8000` jest zajety, sprawdz proces:
+- CLI dziala po zainstalowaniu zaleznosci backendu i dostepnym Ollama; bez tego komendy ingest/chat zwroca bledy importu lub polaczenia.
 
-```powershell
-Get-NetTCPConnection -LocalPort 8000
-```
+## Troubleshooting
 
-- `Docs/`, `chroma_db/`, `.venv/`, `node_modules/` i `dist/` nie powinny byc commitowane.
+- Frontend pokazuje API offline: sprawdz GET /health i wartosc VITE_API_URL.
+- Brak odpowiedzi z modelu: sprawdz czy Ollama dziala i czy modele sa pobrane.
+- Brak wynikow po ingest: sprawdz czy dokument ma tresc i czy chunki zapisaly sie w chroma_db.
+

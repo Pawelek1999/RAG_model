@@ -1,12 +1,26 @@
+/**
+ * Frontend API service for the RAG backend.
+ *
+ * This module performs HTTP requests and progress tracking only.
+ * It intentionally contains no UI-level business decisions.
+ */
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
+/**
+ * Progress snapshot for the full ingest pipeline.
+ */
 export type IngestPipelineProgress = {
+  /** Completion percentage from 0 to 100. */
   percent: number
+  /** Human-readable stage label shown in the UI. */
   message: string
 }
 
 type UploadProgressCallback = (progress: IngestPipelineProgress) => void
 
+/**
+ * Raw ingest progress payload returned by the backend polling endpoint.
+ */
 type IngestProgressApiResponse = {
   upload_id: string
   progress_percent: number
@@ -15,6 +29,9 @@ type IngestProgressApiResponse = {
   message: string
 }
 
+/**
+ * Source metadata attached to answer chunks.
+ */
 export type ApiSource = {
   file_name: string | null
   file_type: string | null
@@ -24,11 +41,17 @@ export type ApiSource = {
   chunk_index: number | null
 }
 
+/**
+ * Response returned by the ask endpoint.
+ */
 export type AskApiResponse = {
   answer: string
   sources: ApiSource[]
 }
 
+/**
+ * Single document summary shown in the documents table.
+ */
 export type DocumentApiInfo = {
   file_name: string | null
   file_type: string | null
@@ -36,11 +59,17 @@ export type DocumentApiInfo = {
   chunks_count: number
 }
 
+/**
+ * Documents listing payload returned by the backend.
+ */
 export type DocumentsApiResponse = {
   documents: DocumentApiInfo[]
   total_chunks_count: number
 }
 
+/**
+ * Ingest endpoint payload after processing a single file.
+ */
 export type IngestApiResponse = {
   file_name: string
   documents_count: number
@@ -49,16 +78,25 @@ export type IngestApiResponse = {
   total_chunks_count: number
 }
 
+/**
+ * Delete endpoint payload containing deleted chunks count.
+ */
 export type DeleteDocumentApiResponse = {
   source: string
   deleted_chunks_count: number
   total_chunks_count: number
 }
 
+/**
+ * Fetches the current list of indexed documents.
+ */
 export async function getDocuments() {
   return requestJson<DocumentsApiResponse>('/documents')
 }
 
+/**
+ * Sends a user question with the retrieval depth parameter.
+ */
 export async function askQuestion(question: string, k: number) {
   return requestJson<AskApiResponse>('/ask', {
     method: 'POST',
@@ -69,6 +107,9 @@ export async function askQuestion(question: string, k: number) {
   })
 }
 
+/**
+ * Uploads one file and reports combined upload and indexing progress.
+ */
 export async function ingestDocument(
   file: File,
   onProgress?: UploadProgressCallback,
@@ -85,6 +126,9 @@ export async function ingestDocument(
   )
 }
 
+/**
+ * Deletes all indexed chunks linked to a given source path.
+ */
 export async function deleteDocument(source: string) {
   return requestJson<DeleteDocumentApiResponse>('/documents/delete', {
     method: 'POST',
@@ -95,6 +139,9 @@ export async function deleteDocument(source: string) {
   })
 }
 
+/**
+ * Executes a JSON request and converts non-success responses into errors.
+ */
 async function requestJson<TResponse>(
   path: string,
   init?: RequestInit,
@@ -109,6 +156,9 @@ async function requestJson<TResponse>(
   return response.json() as Promise<TResponse>
 }
 
+/**
+ * Extracts a readable API error from JSON response bodies.
+ */
 async function readErrorMessage(response: Response) {
   try {
     const data = (await response.json()) as { detail?: string }
@@ -118,6 +168,9 @@ async function readErrorMessage(response: Response) {
   }
 }
 
+/**
+ * Uses XMLHttpRequest to emit upload progress events and poll pipeline status.
+ */
 function uploadFormDataWithProgress<TResponse>(
   path: string,
   formData: FormData,
@@ -136,6 +189,7 @@ function uploadFormDataWithProgress<TResponse>(
         return
       }
 
+      // Reserve the first quarter for raw file upload, then poll backend indexing.
       const uploadPercent = Math.round((event.loaded / event.total) * 100)
       const pipelinePercent = Math.round(uploadPercent * 0.25)
       onProgress({
@@ -174,6 +228,9 @@ function uploadFormDataWithProgress<TResponse>(
   })
 }
 
+/**
+ * Polls ingest progress until processing is completed or failed.
+ */
 function startIngestProgressPolling(
   uploadId: string,
   onProgress?: UploadProgressCallback,
@@ -238,6 +295,9 @@ function startIngestProgressPolling(
   }
 }
 
+/**
+ * Reads error details from plain response text when upload fails.
+ */
 function readErrorMessageFromText(responseText: string, status: number) {
   try {
     const data = JSON.parse(responseText) as { detail?: string }

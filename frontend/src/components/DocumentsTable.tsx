@@ -1,12 +1,22 @@
 import type { DocumentApiInfo, DocumentsApiResponse } from '../api/ragApi'
 
+/**
+ * Props for the documents listing table.
+ */
 type DocumentsTableProps = {
+  /** Cached backend response with indexed document summaries. */
   documentsResponse: DocumentsApiResponse | null
+  /** Disables delete actions while a delete request is running. */
   isDeleting: boolean
+  /** Removes all chunks for the selected document source. */
   onDelete: (source: string) => void
+  /** Refreshes the document list from the backend. */
   onRefresh: () => void
 }
 
+/**
+ * Displays indexed documents and allows refresh and delete actions.
+ */
 export function DocumentsTable({
   documentsResponse,
   isDeleting,
@@ -63,9 +73,15 @@ export function DocumentsTable({
   )
 }
 
+/**
+ * Props for a single document table row.
+ */
 type DocumentRowProps = {
+  /** Document entry rendered in the current row. */
   document: DocumentApiInfo
+  /** Global delete state used to prevent concurrent deletes. */
   isDeleting: boolean
+  /** Invoked when a row delete action is confirmed. */
   onDelete: (source: string) => void
 }
 

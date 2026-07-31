@@ -48,6 +48,7 @@ pnpm-debug.log*
 
 # Local notes
 Ai_context.md
+/AI/
 
 # Tooling / editor
 .vscode/

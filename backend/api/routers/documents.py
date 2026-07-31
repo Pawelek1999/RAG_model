@@ -1,3 +1,5 @@
+"""Document management endpoints for listing and deleting indexed files."""
+
 import logging
 import time
 from typing import Annotated
@@ -21,7 +23,14 @@ logger = logging.getLogger(__name__)
 def list_documents(
     rag_service: Annotated[RagApiService, Depends(get_rag_service)],
 ) -> DocumentsResponse:
-    # Zwraca liste plikow, ktore maja zapisane chunki w ChromaDB.
+    """Lists documents currently represented in the vector store.
+
+    Args:
+        rag_service: Service dependency exposing document listing operations.
+
+    Returns:
+        List of documents with global chunk count.
+    """
     started_at = time.perf_counter()
     logger.debug("documents-list-start")
     documents, total_chunks_count = rag_service.list_documents()
@@ -43,7 +52,15 @@ def delete_document(
     source: Annotated[str, Query(min_length=1)],
     rag_service: Annotated[RagApiService, Depends(get_rag_service)],
 ) -> DeleteDocumentResponse:
-    # Usuwa dokument z bazy wektorowej na podstawie pola source.
+    """Deletes one document by source identifier passed as query parameter.
+
+    Args:
+        source: Metadata source value identifying the document.
+        rag_service: Service dependency performing deletion.
+
+    Returns:
+        Deletion summary for the selected source.
+    """
     return _delete_document_by_source(rag_service=rag_service, source=source)
 
 
@@ -52,7 +69,15 @@ def delete_document_with_body(
     request: DeleteDocumentRequest,
     rag_service: Annotated[RagApiService, Depends(get_rag_service)],
 ) -> DeleteDocumentResponse:
-    # Alternatywny endpoint usuwania dokumentu z JSON body.
+    """Deletes one document by source identifier sent in request body.
+
+    Args:
+        request: Payload containing source value.
+        rag_service: Service dependency performing deletion.
+
+    Returns:
+        Deletion summary for the selected source.
+    """
     return _delete_document_by_source(
         rag_service=rag_service,
         source=request.source,

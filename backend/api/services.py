@@ -1,3 +1,5 @@
+"""Application service layer used by API routers to execute RAG operations."""
+
 import logging
 import time
 from pathlib import Path
@@ -10,20 +12,27 @@ from backend.api.schemas import DeleteDocumentResponse, DocumentInfo, SourceResp
 from backend.components.document_chunker import DocumentChunker
 from backend.components.document_loader import DocumentLoader
 from backend.components.embedding_service import EmbeddingService
+from backend.components.fact_processing.service import FactPreparationLayer
 from backend.components.rag_application import RAGApplication
-from backend.components.retriever_service import RetrieverService
-from backend.components.vector_store_manager import VectorStoreManager
+from backend.components.RetrieverService.query_features import extract_query_features
+from backend.components.RetrieverService.service import RetrieverService
+from backend.components.VectorStoreManager.service import VectorStoreManager
 
 
 logger = logging.getLogger(__name__)
 
 
-# Klasa RagApiService laczy endpointy API z istniejacymi klasami backendu RAG.
 class RagApiService:
+    """Coordinates document ingestion, retrieval, and answer generation for API endpoints."""
+
     def __init__(self, settings: ApiSettings) -> None:
-        # Buduje wspolne komponenty, ktore moga byc uzywane przez endpointy.
+        """Initializes reusable RAG components shared across requests.
+
+        Args:
+            settings: Runtime configuration for models, storage, and retrieval.
+        """
         self.settings = settings
-        self.loader = DocumentLoader()
+        self.loader = DocumentLoader(xlsx_mode=settings.xlsx_loader_mode)
         self.chunker = DocumentChunker()
         self.embedding_service = EmbeddingService(
             model_name=settings.embedding_model,
@@ -43,23 +52,45 @@ class RagApiService:
             model_name=settings.llm_model,
             base_url=settings.ollama_base_url,
         )
+        self.fact_preparation_layer = FactPreparationLayer(
+            retriever_service=self.retriever_service,
+            max_items=settings.rag_fact_max_items,
+            include_raw_snippets=settings.rag_fact_include_raw_snippets,
+        )
 
     def ingest_file(
         self,
         file_path: Path,
         on_progress: Callable[[int, str], None] | None = None,
     ) -> dict[str, int | str]:
-        # Wczytuje plik, dzieli go na chunki i zapisuje nowe chunki w ChromaDB.
+        """Indexes a file into the vector store and returns ingestion statistics.
+
+        Args:
+            file_path: Path to the source file that should be indexed.
+            on_progress: Optional callback receiving progress percent and message.
+
+        Returns:
+            Summary with file name and chunking/indexing counters.
+        """
         started_at = time.perf_counter()
         logger.info("service-ingest-start file_path=%s", file_path)
         if on_progress:
             on_progress(20, "Wczytuje dokument")
         documents = self.loader.load(file_path)
-        logger.debug("service-ingest-loaded file_path=%s documents_count=%s", file_path, len(documents))
+        logger.debug(
+            "service-ingest-loaded file_path=%s documents_before_chunking=%s",
+            file_path,
+            len(documents),
+        )
         if on_progress:
             on_progress(45, "Dzieli dokument na chunki")
         chunks = self.chunker.split(documents)
-        logger.debug("service-ingest-chunked file_path=%s chunks_count=%s", file_path, len(chunks))
+        logger.debug(
+            "service-ingest-chunked file_path=%s documents_before_chunking=%s chunks_after_chunking=%s",
+            file_path,
+            len(documents),
+            len(chunks),
+        )
         if on_progress:
             on_progress(70, "Zapisuje chunki w ChromaDB")
         added_count = self.vector_store_manager.add_documents(chunks)
@@ -88,21 +119,59 @@ class RagApiService:
         }
 
     def ask(self, question: str, k: int) -> tuple[str, list[SourceResponse]]:
-        # Zadaje pytanie do RAG i zwraca odpowiedz razem ze zrodlami.
+        """Answers a question with RAG and returns supporting sources.
+
+        Args:
+            question: Natural language question from the user.
+            k: Requested number of top documents for retrieval.
+
+        Returns:
+            Tuple with model answer text and serialized source entries.
+        """
         started_at = time.perf_counter()
-        logger.debug("service-ask-start k=%s question_len=%s", k, len(question))
-        documents = self.retriever_service.retrieve(query=question, k=k)
-        logger.debug("service-ask-retrieved k=%s documents_count=%s", k, len(documents))
-        context = self.retriever_service.format_context(documents)
-        sources = self._build_sources(documents)
+        logger.debug(
+            "service-ask-start k=%s question_len=%s fact_mode=%s",
+            k,
+            len(question),
+            self.settings.rag_fact_mode,
+        )
+        query_features = extract_query_features(question)
+        retrieval_k = k
+
+        if self.settings.rag_fact_mode != "raw" and query_features.intent in {
+            "LIST_BUGS",
+            "AFFECTED_TEST_FULL",
+        }:
+            retrieval_k = max(k, min(self.settings.rag_fact_max_items, 80))
+
+        documents = self.retriever_service.retrieve(query=question, k=retrieval_k)
+        logger.debug(
+            "service-ask-retrieved requested_k=%s retrieval_k=%s intent=%s documents_count=%s",
+            k,
+            retrieval_k,
+            query_features.intent,
+            len(documents),
+        )
+
+        prepared = self.fact_preparation_layer.prepare(
+            question=question,
+            retrieved_documents=documents,
+            fact_mode=self.settings.rag_fact_mode,
+        )
+        context = prepared.context
+        sources = self._build_sources(prepared.context_documents)
         answer = self.rag_application.ask_with_context(
             question=question,
             context=context,
+            context_kind=prepared.context_kind,
         )
         duration_ms = (time.perf_counter() - started_at) * 1000
         logger.info(
-            "service-ask-end k=%s sources_count=%s answer_len=%s duration_ms=%.2f",
+            "service-ask-end k=%s mode=%s intent=%s facts=%s sources_count=%s answer_len=%s duration_ms=%.2f",
             k,
+            prepared.context_kind,
+            prepared.query_features.intent,
+            len(prepared.preparation_result.facts),
             len(sources),
             len(answer),
             duration_ms,
@@ -110,7 +179,11 @@ class RagApiService:
         return answer, sources
 
     def list_documents(self) -> tuple[list[DocumentInfo], int]:
-        # Zwraca prosta liste plikow, ktore maja chunki zapisane w ChromaDB.
+        """Lists unique ingested documents and total number of stored chunks.
+
+        Returns:
+            Tuple containing document descriptors and global chunk count.
+        """
         logger.debug("service-list-documents-start")
         result = self.vector_store_manager.vector_store.get(include=["metadatas"])
         metadatas = result.get("metadatas") or []
@@ -151,11 +224,22 @@ class RagApiService:
         return documents, total_chunks_count
 
     def supported_extensions(self) -> list[str]:
-        # Zwraca formaty plikow obslugiwane przez loader.
+        """Returns file extensions accepted by the ingestion pipeline.
+
+        Returns:
+            Sorted list of supported file extensions.
+        """
         return self.loader.supported_extensions()
 
     def delete_document(self, source: str) -> DeleteDocumentResponse:
-        # Usuwa z ChromaDB wszystkie chunki powiazane z podanym zrodlem.
+        """Deletes all chunks associated with a source path.
+
+        Args:
+            source: Source identifier stored in document metadata.
+
+        Returns:
+            Deletion summary including removed and remaining chunk counts.
+        """
         logger.info("service-delete-document-start source=%s", source)
         deleted_count = self.vector_store_manager.delete_by_source(source)
         total_count = self.vector_store_manager.count_documents()
@@ -185,9 +269,16 @@ class RagApiService:
                 source=metadata.get("source"),
                 page=metadata.get("page"),
                 sheet_name=metadata.get("sheet_name"),
+                row_index=metadata.get("row_index"),
+                row_type=metadata.get("row_type"),
+                status=metadata.get("status"),
+                anomaly=metadata.get("anomaly"),
+                skip_from_business_flow=metadata.get("skip_from_business_flow"),
+                test_sequence_number=metadata.get("test_sequence_number"),
+                revision=metadata.get("revision"),
                 chunk_index=metadata.get("chunk_index"),
             )
-            key = (source.source, source.page, source.sheet_name, source.chunk_index)
+            key = (source.source, source.page, source.sheet_name, source.row_index, source.chunk_index)
 
             if key in seen:
                 continue

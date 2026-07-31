@@ -1,3 +1,5 @@
+"""Command-line entrypoint for local indexing and chat workflows."""
+
 import argparse
 import sys
 from pathlib import Path
@@ -10,15 +12,12 @@ from backend.components.document_chunker import DocumentChunker
 from backend.components.document_loader import DocumentLoader
 from backend.components.embedding_service import EmbeddingService
 from backend.components.rag_application import RAGApplication
-from backend.components.retriever_service import RetrieverService
-from backend.components.vector_store_manager import VectorStoreManager
+from backend.components.RetrieverService.service import RetrieverService
+from backend.components.VectorStoreManager.service import VectorStoreManager
 
 
-# Plik main.py jest prostym CLI do uruchamiania lokalnej aplikacji RAG.
-# Komenda ingest indeksuje dokument, a komenda chat uruchamia rozmowe
-# z modelem na podstawie danych zapisanych w ChromaDB.
 def main() -> None:
-    # Tworzy parser argumentow terminala i uruchamia wybrana komende.
+    """Parses CLI arguments and executes selected command."""
     parser = build_parser()
     args = parser.parse_args()
 
@@ -34,7 +33,11 @@ def main() -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    # Definiuje dostepne komendy CLI oraz ich argumenty.
+    """Builds CLI parser with ingestion and chat subcommands.
+
+    Returns:
+        Configured argparse parser.
+    """
     parser = argparse.ArgumentParser(description="Lokalna aplikacja RAG w terminalu")
     subparsers = parser.add_subparsers(dest="command")
 
@@ -53,8 +56,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def ingest_document(file_path: Path) -> None:
-    # Wczytuje dokument, dzieli go na chunki i zapisuje w ChromaDB.
-    loader = DocumentLoader()
+    """Loads and indexes one document into ChromaDB.
+
+    Args:
+        file_path: Path to a supported input document.
+    """
+    loader = DocumentLoader(xlsx_mode=settings.xlsx_loader_mode)
     chunker = DocumentChunker()
     embedding_service = EmbeddingService(
         model_name=settings.embedding_model,
@@ -78,7 +85,11 @@ def ingest_document(file_path: Path) -> None:
 
 
 def start_chat(k: int = 4) -> None:
-    # Uruchamia petle rozmowy z RAG na podstawie istniejacej bazy ChromaDB.
+    """Starts an interactive RAG chat loop using indexed documents.
+
+    Args:
+        k: Number of chunks retrieved for each user question.
+    """
     embedding_service = EmbeddingService(
         model_name=settings.embedding_model,
         base_url=settings.ollama_base_url,
